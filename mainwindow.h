@@ -189,7 +189,7 @@ private:
     QTranslator translator;
     bool isEnglish;
 
-    // UI
+    // UI Elements
     QWidget *mainWidget;
     QVBoxLayout *mainLayout;
     QScrollArea *sidebar;
