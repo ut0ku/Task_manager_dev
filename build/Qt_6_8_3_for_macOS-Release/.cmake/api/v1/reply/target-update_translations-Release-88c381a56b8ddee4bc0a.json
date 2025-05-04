@@ -1,0 +1,85 @@
+{
+	"backtrace" : 5,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target",
+			"_qt_internal_add_phony_target",
+			"qt6_add_lupdate",
+			"qt6_add_translations",
+			"add_dependencies",
+			"_qt_internal_add_phony_target_dependencies"
+		],
+		"files" : 
+		[
+			"/Users/uuto/Qt/6.8.3/macos/lib/cmake/Qt6/QtPublicCMakeHelpers.cmake",
+			"/Users/uuto/Qt/6.8.3/macos/lib/cmake/Qt6LinguistTools/Qt6LinguistToolsMacros.cmake",
+			"/Users/uuto/Qt/6.8.3/macos/lib/cmake/Qt6LinguistTools/Qt6LinguistToolsMacros.cmake:707:EVAL",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 3
+			},
+			{
+				"file" : 3,
+				"line" : -1,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 2,
+				"line" : 1,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 718,
+				"parent" : 2
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 373,
+				"parent" : 3
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 299,
+				"parent" : 4
+			},
+			{
+				"command" : 5,
+				"file" : 1,
+				"line" : 376,
+				"parent" : 3
+			},
+			{
+				"command" : 4,
+				"file" : 0,
+				"line" : 328,
+				"parent" : 6
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 7,
+			"id" : "backup_1_lupdate::@6890427a1f51a3e7e1df"
+		}
+	],
+	"id" : "update_translations::@6890427a1f51a3e7e1df",
+	"name" : "update_translations",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

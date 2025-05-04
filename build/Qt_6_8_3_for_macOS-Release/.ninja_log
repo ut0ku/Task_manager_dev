@@ -1,0 +1,25 @@
+# ninja log v6
+715	4236	1746370136561495172	CMakeFiles/backup_1.dir/main.cpp.o	e70edb9d7da683fc
+7880	8156	1746370143727370756	backup_1.app/Contents/MacOS/backup_1	41d76b496f745ac8
+5	713	1746370136526277018	/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/mocs_compilation.cpp	d20ec65ea651d8c4
+5	713	1746370136526277018	/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/timestamp	d20ec65ea651d8c4
+716	7880	1746370136562908774	CMakeFiles/backup_1.dir/mainwindow.cpp.o	7fe70ac7106c8dda
+5	713	1746370136526277018	backup_1_autogen/timestamp	d20ec65ea651d8c4
+1545	7451	1746369860045931341	CMakeFiles/untitled19.dir/mainwindow.cpp.o	1fef09b2c8150b82
+3	1535	1746369859987712312	untitled19_autogen/mocs_compilation.cpp	2a2858af2588ebc5
+5	93	1746369858593019433	untitled19_en_US.qm	86a59096e5d19aec
+3	1535	1746369859987712312	untitled19_autogen/timestamp	2a2858af2588ebc5
+5	93	1746369858593019433	/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/untitled19_en_US.qm	86a59096e5d19aec
+714	4268	1746370136561061792	CMakeFiles/backup_1.dir/backup_1_autogen/mocs_compilation.cpp.o	8a75eb0efb004e5b
+6	345	1746370160285604547	build.ninja	e8b761991a7b7bc6
+1543	5042	1746369860044443239	CMakeFiles/untitled19.dir/main.cpp.o	39d8872d6960a8ab
+3	1535	1746369859987712312	/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/untitled19_autogen/mocs_compilation.cpp	2a2858af2588ebc5
+5	713	1746370136526277018	backup_1_autogen/mocs_compilation.cpp	d20ec65ea651d8c4
+3	1535	1746369859987712312	/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/untitled19_autogen/timestamp	2a2858af2588ebc5
+1542	5033	1746369860042943527	CMakeFiles/untitled19.dir/untitled19_autogen/mocs_compilation.cpp.o	1590eba3e57efc43
+7451	7695	1746369865952043755	untitled19.app/Contents/MacOS/untitled19	fdc6a14786ced884
+5	328	1746370160285604547	build.ninja	e8b761991a7b7bc6
+9	87	1746370160328391263	backup_1_autogen/timestamp	d20ec65ea651d8c4
+9	87	1746370160328391263	backup_1_autogen/mocs_compilation.cpp	d20ec65ea651d8c4
+9	87	1746370160328391263	/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/timestamp	d20ec65ea651d8c4
+9	87	1746370160328391263	/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/mocs_compilation.cpp	d20ec65ea651d8c4

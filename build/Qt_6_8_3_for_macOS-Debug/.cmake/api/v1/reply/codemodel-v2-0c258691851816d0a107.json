@@ -1,0 +1,115 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-3361aea60d90ab9dd5a2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "untitled19",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "release_translations::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-release_translations-Debug-a0b61b802422d613992e.json",
+					"name" : "release_translations",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "untitled19::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-untitled19-Debug-ca545974ab22117a5487.json",
+					"name" : "untitled19",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "untitled19_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-untitled19_autogen-Debug-24079176b00d492d461b.json",
+					"name" : "untitled19_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "untitled19_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-untitled19_autogen_timestamp_deps-Debug-d5f66bc30fc201c104c0.json",
+					"name" : "untitled19_autogen_timestamp_deps",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "untitled19_lrelease::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-untitled19_lrelease-Debug-59612699019532a0f61c.json",
+					"name" : "untitled19_lrelease",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "untitled19_lupdate::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-untitled19_lupdate-Debug-9bd7f11c7472c4aecbfe.json",
+					"name" : "untitled19_lupdate",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "update_translations::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-update_translations-Debug-0bf14c5802fa395d3e81.json",
+					"name" : "update_translations",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug",
+		"source" : "/Users/uuto/untitled19"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

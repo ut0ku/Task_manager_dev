@@ -1,0 +1,11 @@
+set(lupdate_project_file "/Users/uuto/Backup_1/CMakeLists.txt")
+set(lupdate_translations "/Users/uuto/Backup_1/untitled19_en_US.ts")
+set(lupdate_include_paths "")
+set(lupdate_sources "")
+set(lupdate_subproject_count 1)
+
+set(lupdate_subproject1_source_dir "/Users/uuto/Backup_1")
+set(lupdate_subproject1_include_paths "/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/include;/Users/uuto/Qt/6.8.3/macos/lib/QtCore.framework/Headers;/Users/uuto/Qt/6.8.3/macos/lib/QtCore.framework;/Users/uuto/Qt/6.8.3/macos/mkspecs/macx-clang;/Users/uuto/Qt/6.8.3/macos/include;/Users/uuto/Qt/6.8.3/macos/lib/QtWidgets.framework/Headers;/Users/uuto/Qt/6.8.3/macos/lib/QtWidgets.framework;/Users/uuto/Qt/6.8.3/macos/lib/QtGui.framework/Headers;/Users/uuto/Qt/6.8.3/macos/lib/QtGui.framework;/Users/uuto/Qt/6.8.3/macos/lib/QtSql.framework/Headers;/Users/uuto/Qt/6.8.3/macos/lib/QtSql.framework;/Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk/usr/include")
+set(lupdate_subproject1_sources "/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/mocs_compilation.cpp;main.cpp;mainwindow.cpp;mainwindow.h;mainwindow.ui;/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/include/ui_mainwindow.h;/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/timestamp;/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen/timestamp.rule")
+set(lupdate_subproject1_excluded "")
+set(lupdate_subproject1_autogen_dir "/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/backup_1_autogen")

@@ -1,0 +1,13 @@
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/backup_1.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/backup_1_lupdate.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/update_translations.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/backup_1_lrelease.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/release_translations.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/edit_cache.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/rebuild_cache.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/list_install_components.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/install.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/install/local.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/install/strip.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/backup_1_autogen_timestamp_deps.dir
+/Users/uuto/Backup_1/build/Qt_6_8_3_for_macOS-Release/CMakeFiles/backup_1_autogen.dir

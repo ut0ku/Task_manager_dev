@@ -1,0 +1,13 @@
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/untitled19.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/untitled19_lupdate.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/update_translations.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/untitled19_lrelease.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/release_translations.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/edit_cache.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/rebuild_cache.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/list_install_components.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/install.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/install/local.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/install/strip.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/untitled19_autogen_timestamp_deps.dir
+/Users/uuto/untitled19/build/Qt_6_8_3_for_macOS-Debug/CMakeFiles/untitled19_autogen.dir

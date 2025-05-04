@@ -1,0 +1,70 @@
+{
+	"backtrace" : 4,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target",
+			"qt6_add_lrelease",
+			"qt6_add_translations",
+			"add_dependencies"
+		],
+		"files" : 
+		[
+			"/Users/uuto/Qt/6.8.3/macos/lib/cmake/Qt6LinguistTools/Qt6LinguistToolsMacros.cmake",
+			"/Users/uuto/Qt/6.8.3/macos/lib/cmake/Qt6LinguistTools/Qt6LinguistToolsMacros.cmake:707:EVAL",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 2
+			},
+			{
+				"file" : 2,
+				"line" : -1,
+				"parent" : 0
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 1,
+				"parent" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 727,
+				"parent" : 2
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 523,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 525,
+				"parent" : 3
+			}
+		]
+	},
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 5,
+			"id" : "backup_1_lrelease::@6890427a1f51a3e7e1df"
+		}
+	],
+	"id" : "release_translations::@6890427a1f51a3e7e1df",
+	"name" : "release_translations",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}
