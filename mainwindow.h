@@ -168,6 +168,7 @@ private slots:
     void toggleLanguage();
 
 private:
+    void refreshEntireUI();
     void setupUI();
     void loadWorkspaces();
     void loadCategories();

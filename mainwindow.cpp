@@ -20,13 +20,12 @@ MainWindow::MainWindow(QWidget *parent)
 {
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("task_manager.db");
-
+    
     if (!db.open()) {
         QMessageBox::critical(this, tr("Error"), tr("Can't open database: ") + db.lastError().text());
         return;
     }
 
-    // Create tables if they don't exist
     executeSQL("CREATE TABLE IF NOT EXISTS Workspaces (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);");
     executeSQL("CREATE TABLE IF NOT EXISTS Categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, workspace_id INTEGER, FOREIGN KEY(workspace_id) REFERENCES Workspaces(id));");
     executeSQL("CREATE TABLE IF NOT EXISTS Tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category_id INTEGER, difficulty TEXT, priority TEXT, status TEXT, deadline TEXT, FOREIGN KEY(category_id) REFERENCES Categories(id));");
@@ -50,88 +49,83 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    // Main widget and layout
     mainWidget = new QWidget(this);
     mainLayout = new QVBoxLayout(mainWidget);
-
-    // Sidebar
+    
     sidebar = new QScrollArea(this);
     sidebar->setFixedWidth(200);
     sidebar->setWidgetResizable(true);
-
+    
     sidebarContent = new QWidget();
     sidebarLayout = new QVBoxLayout(sidebarContent);
     sidebarLayout->setAlignment(Qt::AlignTop);
-
+    
     toggleSidebarButton = new QPushButton("☰", this);
     toggleSidebarButton->setFixedSize(30, 30);
     connect(toggleSidebarButton, &QPushButton::clicked, this, &MainWindow::toggleSidebar);
-
+    
     addWorkspaceButton = new QPushButton(tr("Add Workspace"), this);
     connect(addWorkspaceButton, &QPushButton::clicked, this, &MainWindow::addWorkspace);
-
+    
     sidebar->setFrameShape(QFrame::NoFrame); // Убираем границу
     sidebar->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     sidebarLayout->addWidget(toggleSidebarButton);
     sidebarLayout->addWidget(addWorkspaceButton);
-    toggleSidebarButton->raise(); // Поднимаем кнопку поверх других виджетов
-    // Show workspaces
+    toggleSidebarButton->raise();
+
     showWorkspaces();
-
+    
     sidebar->setWidget(sidebarContent);
-
-    // Workspace view area
+    
     workspaceView = new QWidget(this);
     workspaceLayout = new QVBoxLayout(workspaceView);
-
+    
     currentWorkspaceLabel = new QLabel(tr("Select a workspace"), this);
     currentWorkspaceLabel->setAlignment(Qt::AlignCenter);
-
+    
     addCategoryButton = new QPushButton(tr("Add Category"), this);
     addCategoryButton->setEnabled(false);
     connect(addCategoryButton, &QPushButton::clicked, this, &MainWindow::addCategory);
-
+    
     categoriesScroll = new QScrollArea(this);
     categoriesScroll->setWidgetResizable(true);
-
+    
     categoriesContent = new QWidget();
     categoriesLayout = new QVBoxLayout(categoriesContent);
     categoriesLayout->setAlignment(Qt::AlignTop);
-
+    
     categoriesScroll->setWidget(categoriesContent);
-
+    
     workspaceLayout->addWidget(currentWorkspaceLabel);
     workspaceLayout->addWidget(addCategoryButton);
     workspaceLayout->addWidget(categoriesScroll);
-
-    // Right sidebar
+    
     QWidget *rightSidebar = new QWidget(this);
     QVBoxLayout *rightSidebarLayout = new QVBoxLayout(rightSidebar);
     rightSidebarLayout->setAlignment(Qt::AlignTop);
-
+    
     historyButton = new QPushButton(tr("History"), this);
     connect(historyButton, &QPushButton::clicked, this, &MainWindow::showHistory);
-
+    
     notificationsButton = new QPushButton(tr("Notifications"), this);
     connect(notificationsButton, &QPushButton::clicked, this, &MainWindow::showNotifications);
-
+    
     languageButton = new QPushButton(tr("English"), this);
     connect(languageButton, &QPushButton::clicked, this, &MainWindow::toggleLanguage);
-
+    
     rightSidebarLayout->addWidget(historyButton);
     rightSidebarLayout->addWidget(notificationsButton);
     rightSidebarLayout->addWidget(languageButton);
-
-    // Main layout
+    
     QHBoxLayout *contentLayout = new QHBoxLayout();
     contentLayout->addWidget(sidebar);
     contentLayout->addWidget(workspaceView);
     contentLayout->addWidget(rightSidebar);
-
+    
     mainLayout->addLayout(contentLayout);
     setCentralWidget(mainWidget);
-
+    
     resize(1000, 600);
     setWindowTitle(tr("Task Manager"));
 }
@@ -153,7 +147,7 @@ void MainWindow::loadCategories()
         int id = query.value(0).toInt();
         QString name = query.value(1).toString();
         int workspaceId = query.value(2).toInt();
-
+        
         for (auto it = workspaces.begin(); it != workspaces.end(); ++it) {
             if (it.value()->getId() == workspaceId) {
                 it.value()->addCategory(name);
@@ -174,13 +168,13 @@ void MainWindow::loadTasks()
         QString priority = query.value(4).toString();
         QString status = query.value(5).toString();
         QString deadline = query.value(6).toString();
-
+        
         QStringList tags;
         QSqlQuery tagQuery("SELECT tag FROM TaskTags WHERE task_id = " + QString::number(id) + ";");
         while (tagQuery.next()) {
             tags.append(tagQuery.value(0).toString());
         }
-
+        
         for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
             QMap<QString, Category*>& categories = workspaceIt.value()->getCategories();
             for (auto categoryIt = categories.begin(); categoryIt != categories.end(); ++categoryIt) {
@@ -205,13 +199,13 @@ void MainWindow::loadTaskHistory()
         QString priority = query.value(4).toString();
         QString status = query.value(5).toString();
         QString deadline = query.value(6).toString();
-
+        
         QStringList tags;
         QSqlQuery tagQuery("SELECT tag FROM TaskTags WHERE task_id = " + QString::number(id) + ";");
         while (tagQuery.next()) {
             tags.append(tagQuery.value(0).toString());
         }
-
+        
         Task task(id, description, "", tags, difficulty, priority, status, deadline);
         taskHistory.append(task);
     }
@@ -227,7 +221,6 @@ void MainWindow::executeSQL(const QString& sql)
 
 void MainWindow::showWorkspaces()
 {
-    // Clear existing workspace buttons (preserve first two items)
     while (sidebarLayout->count() > 2) {
         QLayoutItem* item = sidebarLayout->takeAt(2);
         if (item->widget()) {
@@ -236,7 +229,6 @@ void MainWindow::showWorkspaces()
         delete item;
     }
 
-    // Add workspace buttons
     for (auto it = workspaces.begin(); it != workspaces.end(); ++it) {
         QPushButton *workspaceButton = new QPushButton(it.key(), sidebarContent);
         workspaceButton->setProperty("workspaceName", it.key());
@@ -257,42 +249,40 @@ void MainWindow::showWorkspaces()
 
 void MainWindow::showCategories(const QString& workspaceName)
 {
-    // Clear existing categories
     QLayoutItem* item;
     while ((item = categoriesLayout->takeAt(0))) {
         delete item->widget();
         delete item;
     }
-
+    
     if (!workspaces.contains(workspaceName)) return;
-
+    
     Workspace *workspace = workspaces[workspaceName];
     currentWorkspaceLabel->setText(tr("Workspace: %1").arg(workspaceName));
     addCategoryButton->setEnabled(true);
-
+    
     QMap<QString, Category*>& categories = workspace->getCategories();
     for (auto it = categories.begin(); it != categories.end(); ++it) {
         QGroupBox *categoryGroup = new QGroupBox(it.key(), categoriesContent);
         QVBoxLayout *categoryLayout = new QVBoxLayout(categoryGroup);
-
+        
         QPushButton *addTaskButton = new QPushButton(tr("Add Task"), categoryGroup);
         addTaskButton->setProperty("workspaceName", workspaceName);
         addTaskButton->setProperty("categoryName", it.key());
         connect(addTaskButton, &QPushButton::clicked, this, &MainWindow::addTask);
-
+        
         QPushButton *deleteCategoryButton = new QPushButton(tr("Delete Category"), categoryGroup);
         deleteCategoryButton->setProperty("workspaceName", workspaceName);
         deleteCategoryButton->setProperty("categoryName", it.key());
         connect(deleteCategoryButton, &QPushButton::clicked, this, &MainWindow::removeCategory);
-
+        
         QTableWidget *tasksTable = new QTableWidget(0, 5, categoryGroup);
         tasksTable->setHorizontalHeaderLabels(QStringList() << tr("Task") << tr("Deadline") << tr("Status") << tr("Priority") << tr("Difficulty"));
         tasksTable->horizontalHeader()->setStretchLastSection(true);
         tasksTable->verticalHeader()->setVisible(false);
         tasksTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
         tasksTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-
-        // Add tasks to table
+        
         QVector<Task*>& tasks = it.value()->getTasks();
         tasksTable->setRowCount(tasks.size());
         for (int i = 0; i < tasks.size(); ++i) {
@@ -302,21 +292,20 @@ void MainWindow::showCategories(const QString& workspaceName)
             tasksTable->setItem(i, 2, new QTableWidgetItem(task->getStatus()));
             tasksTable->setItem(i, 3, new QTableWidgetItem(task->getPriority()));
             tasksTable->setItem(i, 4, new QTableWidgetItem(task->getDifficulty()));
-
-            // Add delete button
+            
             QPushButton *deleteButton = new QPushButton(tr("Delete"), tasksTable);
             deleteButton->setProperty("workspaceName", workspaceName);
             deleteButton->setProperty("categoryName", it.key());
             deleteButton->setProperty("taskDescription", task->getDescription());
             connect(deleteButton, &QPushButton::clicked, this, &MainWindow::removeTask);
-
+            
             tasksTable->setCellWidget(i, 5, deleteButton);
         }
-
+        
         categoryLayout->addWidget(addTaskButton);
         categoryLayout->addWidget(deleteCategoryButton);
         categoryLayout->addWidget(tasksTable);
-
+        
         categoriesLayout->addWidget(categoryGroup);
 
     }
@@ -325,22 +314,17 @@ void MainWindow::showCategories(const QString& workspaceName)
 void MainWindow::toggleSidebar()
 {
     if (sidebar->width() > 50) {
-        // Сохраняем текущую позицию кнопки
         int buttonY = toggleSidebarButton->y();
 
-        // Полностью скрываем sidebar
         sidebar->setFixedWidth(0);
 
-        // Делаем кнопку плавающей
         toggleSidebarButton->setParent(this);
         toggleSidebarButton->move(0, buttonY);
         toggleSidebarButton->setText("→");
         toggleSidebarButton->show();
     } else {
-        // Возвращаем sidebar
         sidebar->setFixedWidth(200);
 
-        // Возвращаем кнопку в sidebar
         toggleSidebarButton->setParent(sidebarContent);
         sidebarLayout->insertWidget(0, toggleSidebarButton);
         toggleSidebarButton->setText("←");
@@ -351,14 +335,14 @@ void MainWindow::addWorkspace()
 {
     bool ok;
     QString workspaceName = QInputDialog::getText(this, tr("Add Workspace"),
-                                                  tr("Workspace name:"), QLineEdit::Normal, "", &ok);
+                                             tr("Workspace name:"), QLineEdit::Normal, "", &ok);
     if (ok && !workspaceName.isEmpty()) {
         QString sql = "INSERT INTO Workspaces (name) VALUES ('" + workspaceName + "');";
         executeSQL(sql);
-
+        
         int id = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
         workspaces[workspaceName] = new Workspace(id, workspaceName);
-
+        
         showWorkspaces();
     }
 }
@@ -377,34 +361,28 @@ void MainWindow::removeWorkspace()
                                   QMessageBox::Yes|QMessageBox::No);
     if (reply != QMessageBox::Yes) return;
 
-    // Получаем ID workspace для каскадного удаления
     int workspaceId = workspaces[workspaceName]->getId();
 
-    // Удаляем из базы данных (с каскадным удалением)
-    QSqlDatabase::database().transaction(); // Начинаем транзакцию
+    QSqlDatabase::database().transaction();
 
     try {
-        // 1. Удаляем задачи и их теги
+
         executeSQL(QString("DELETE FROM Tasks WHERE category_id IN "
                            "(SELECT id FROM Categories WHERE workspace_id = %1)").arg(workspaceId));
 
-        // 2. Удаляем категории
         executeSQL(QString("DELETE FROM Categories WHERE workspace_id = %1").arg(workspaceId));
 
-        // 3. Удаляем само workspace
         executeSQL(QString("DELETE FROM Workspaces WHERE id = %1").arg(workspaceId));
 
-        QSqlDatabase::database().commit(); // Подтверждаем изменения
+        QSqlDatabase::database().commit();
     } catch (...) {
-        QSqlDatabase::database().rollback(); // Откатываем при ошибке
+        QSqlDatabase::database().rollback();
         QMessageBox::critical(this, tr("Error"), tr("Failed to delete workspace"));
         return;
     }
 
-    // Удаляем из памяти
     Workspace* workspace = workspaces[workspaceName];
 
-    // Сначала удаляем все категории и задачи
     auto categories = workspace->getCategories();
     for (auto it = categories.begin(); it != categories.end(); ++it) {
         Category* category = it.value();
@@ -414,23 +392,10 @@ void MainWindow::removeWorkspace()
         delete category;
     }
 
-    // Затем само workspace
     delete workspace;
     workspaces.remove(workspaceName);
 
-    // Обновляем интерфейс
-    showWorkspaces();
-    currentWorkspaceLabel->setText(tr("Select a workspace"));
-    addCategoryButton->setEnabled(false);
-
-    // Очищаем виджет категорий
-    QLayoutItem* item;
-    while ((item = categoriesLayout->takeAt(0))) {
-        if (item->widget()) {
-            delete item->widget();
-        }
-        delete item;
-    }
+    setupUI();
 }
 
 void MainWindow::workspaceSelected()
@@ -600,14 +565,12 @@ void MainWindow::removeTask()
                                   QMessageBox::Yes|QMessageBox::No);
     if (reply != QMessageBox::Yes) return;
 
-    // Удаляем из базы данных
     QString sql = "DELETE FROM Tasks WHERE id = " + QString::number(taskToDelete->getId()) + ";";
     executeSQL(sql);
 
     sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(taskToDelete->getId()) + ";";
     executeSQL(sql);
 
-    // Удаляем из памяти
     category->getTasks().remove(taskIndex);
     delete taskToDelete;
 
@@ -634,7 +597,7 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
 
             if (newStatus.compare("Completed", Qt::CaseInsensitive) == 0 &&
                 oldStatus.compare("Completed", Qt::CaseInsensitive) != 0) {
-                // Move task to history
+
                 sql = "INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
                       "VALUES ('" + task->getDescription() + "', " + QString::number(category->getId()) +
                       ", '" + task->getDifficulty() + "', '" + task->getPriority() + "', '" +
@@ -647,14 +610,12 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
                     executeSQL(sql);
                 }
 
-                // Delete from active tasks
                 sql = "DELETE FROM Tasks WHERE id = " + QString::number(task->getId()) + ";";
                 executeSQL(sql);
 
                 sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(task->getId()) + ";";
                 executeSQL(sql);
 
-                // Update in-memory data
                 taskHistory.append(*task);
                 category->removeTask(taskDescription);
                 delete task;
@@ -774,21 +735,18 @@ void MainWindow::restoreTaskFromHistory()
                 executeSQL(sql);
             }
 
-            // Remove from history
             sql = "DELETE FROM TaskHistory WHERE id = " + QString::number(it->getId()) + ";";
             executeSQL(sql);
 
             sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(it->getId()) + ";";
             executeSQL(sql);
 
-            // Create new task and add to category
             Task *task = new Task(taskId, it->getDescription(), categoryName,
                                   it->getTags(), it->getDifficulty(),
                                   it->getPriority(), it->getStatus(),
                                   it->getDeadline());
             category->addTask(task);
 
-            // Remove from history in memory
             taskHistory.erase(it);
 
             QMessageBox::information(this, tr("Task Restored"),
@@ -892,8 +850,7 @@ void MainWindow::checkDeadlines()
 void MainWindow::clearNotifications()
 {
     notifications.clear();
-    // Обновляем базу данных, если уведомления там хранятся
-    executeSQL("DELETE FROM Notifications WHERE viewed = 1"); // Пример
+    executeSQL("DELETE FROM Notifications WHERE viewed = 1");
 }
 
 void MainWindow::toggleLanguage()
