@@ -20,7 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("task_manager.db");
-    
+
     if (!db.open()) {
         QMessageBox::critical(this, tr("Error"), tr("Can't open database: ") + db.lastError().text());
         return;
@@ -51,23 +51,23 @@ void MainWindow::setupUI()
 {
     mainWidget = new QWidget(this);
     mainLayout = new QVBoxLayout(mainWidget);
-    
+
     sidebar = new QScrollArea(this);
     sidebar->setFixedWidth(200);
     sidebar->setWidgetResizable(true);
-    
+
     sidebarContent = new QWidget();
     sidebarLayout = new QVBoxLayout(sidebarContent);
     sidebarLayout->setAlignment(Qt::AlignTop);
-    
+
     toggleSidebarButton = new QPushButton("☰", this);
     toggleSidebarButton->setFixedSize(30, 30);
     connect(toggleSidebarButton, &QPushButton::clicked, this, &MainWindow::toggleSidebar);
-    
+
     addWorkspaceButton = new QPushButton(tr("Add Workspace"), this);
     connect(addWorkspaceButton, &QPushButton::clicked, this, &MainWindow::addWorkspace);
-    
-    sidebar->setFrameShape(QFrame::NoFrame); // Убираем границу
+
+    sidebar->setFrameShape(QFrame::NoFrame);
     sidebar->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     sidebarLayout->addWidget(toggleSidebarButton);
@@ -75,57 +75,57 @@ void MainWindow::setupUI()
     toggleSidebarButton->raise();
 
     showWorkspaces();
-    
+
     sidebar->setWidget(sidebarContent);
-    
+
     workspaceView = new QWidget(this);
     workspaceLayout = new QVBoxLayout(workspaceView);
-    
+
     currentWorkspaceLabel = new QLabel(tr("Select a workspace"), this);
     currentWorkspaceLabel->setAlignment(Qt::AlignCenter);
-    
+
     addCategoryButton = new QPushButton(tr("Add Category"), this);
     addCategoryButton->setEnabled(false);
     connect(addCategoryButton, &QPushButton::clicked, this, &MainWindow::addCategory);
-    
+
     categoriesScroll = new QScrollArea(this);
     categoriesScroll->setWidgetResizable(true);
-    
+
     categoriesContent = new QWidget();
     categoriesLayout = new QVBoxLayout(categoriesContent);
     categoriesLayout->setAlignment(Qt::AlignTop);
-    
+
     categoriesScroll->setWidget(categoriesContent);
-    
+
     workspaceLayout->addWidget(currentWorkspaceLabel);
     workspaceLayout->addWidget(addCategoryButton);
     workspaceLayout->addWidget(categoriesScroll);
-    
+
     QWidget *rightSidebar = new QWidget(this);
     QVBoxLayout *rightSidebarLayout = new QVBoxLayout(rightSidebar);
     rightSidebarLayout->setAlignment(Qt::AlignTop);
-    
+
     historyButton = new QPushButton(tr("History"), this);
     connect(historyButton, &QPushButton::clicked, this, &MainWindow::showHistory);
-    
+
     notificationsButton = new QPushButton(tr("Notifications"), this);
     connect(notificationsButton, &QPushButton::clicked, this, &MainWindow::showNotifications);
-    
+
     languageButton = new QPushButton(tr("English"), this);
     connect(languageButton, &QPushButton::clicked, this, &MainWindow::toggleLanguage);
-    
+
     rightSidebarLayout->addWidget(historyButton);
     rightSidebarLayout->addWidget(notificationsButton);
     rightSidebarLayout->addWidget(languageButton);
-    
+
     QHBoxLayout *contentLayout = new QHBoxLayout();
     contentLayout->addWidget(sidebar);
     contentLayout->addWidget(workspaceView);
     contentLayout->addWidget(rightSidebar);
-    
+
     mainLayout->addLayout(contentLayout);
     setCentralWidget(mainWidget);
-    
+
     resize(1000, 600);
     setWindowTitle(tr("Task Manager"));
 }
@@ -147,7 +147,7 @@ void MainWindow::loadCategories()
         int id = query.value(0).toInt();
         QString name = query.value(1).toString();
         int workspaceId = query.value(2).toInt();
-        
+
         for (auto it = workspaces.begin(); it != workspaces.end(); ++it) {
             if (it.value()->getId() == workspaceId) {
                 it.value()->addCategory(name);
@@ -168,13 +168,13 @@ void MainWindow::loadTasks()
         QString priority = query.value(4).toString();
         QString status = query.value(5).toString();
         QString deadline = query.value(6).toString();
-        
+
         QStringList tags;
         QSqlQuery tagQuery("SELECT tag FROM TaskTags WHERE task_id = " + QString::number(id) + ";");
         while (tagQuery.next()) {
             tags.append(tagQuery.value(0).toString());
         }
-        
+
         for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
             QMap<QString, Category*>& categories = workspaceIt.value()->getCategories();
             for (auto categoryIt = categories.begin(); categoryIt != categories.end(); ++categoryIt) {
@@ -199,13 +199,13 @@ void MainWindow::loadTaskHistory()
         QString priority = query.value(4).toString();
         QString status = query.value(5).toString();
         QString deadline = query.value(6).toString();
-        
+
         QStringList tags;
         QSqlQuery tagQuery("SELECT tag FROM TaskTags WHERE task_id = " + QString::number(id) + ";");
         while (tagQuery.next()) {
             tags.append(tagQuery.value(0).toString());
         }
-        
+
         Task task(id, description, "", tags, difficulty, priority, status, deadline);
         taskHistory.append(task);
     }
@@ -254,35 +254,36 @@ void MainWindow::showCategories(const QString& workspaceName)
         delete item->widget();
         delete item;
     }
-    
+
     if (!workspaces.contains(workspaceName)) return;
-    
+
     Workspace *workspace = workspaces[workspaceName];
     currentWorkspaceLabel->setText(tr("Workspace: %1").arg(workspaceName));
     addCategoryButton->setEnabled(true);
-    
+
     QMap<QString, Category*>& categories = workspace->getCategories();
     for (auto it = categories.begin(); it != categories.end(); ++it) {
         QGroupBox *categoryGroup = new QGroupBox(it.key(), categoriesContent);
         QVBoxLayout *categoryLayout = new QVBoxLayout(categoryGroup);
-        
+
         QPushButton *addTaskButton = new QPushButton(tr("Add Task"), categoryGroup);
         addTaskButton->setProperty("workspaceName", workspaceName);
         addTaskButton->setProperty("categoryName", it.key());
         connect(addTaskButton, &QPushButton::clicked, this, &MainWindow::addTask);
-        
+
         QPushButton *deleteCategoryButton = new QPushButton(tr("Delete Category"), categoryGroup);
         deleteCategoryButton->setProperty("workspaceName", workspaceName);
         deleteCategoryButton->setProperty("categoryName", it.key());
         connect(deleteCategoryButton, &QPushButton::clicked, this, &MainWindow::removeCategory);
-        
-        QTableWidget *tasksTable = new QTableWidget(0, 5, categoryGroup);
-        tasksTable->setHorizontalHeaderLabels(QStringList() << tr("Task") << tr("Deadline") << tr("Status") << tr("Priority") << tr("Difficulty"));
+
+        QTableWidget *tasksTable = new QTableWidget(0, 6, categoryGroup);
+        tasksTable->setHorizontalHeaderLabels(QStringList() << tr("Task") << tr("Deadline")
+                                                            << tr("Status") << tr("Priority") << tr("Difficulty") << tr("Actions"));
         tasksTable->horizontalHeader()->setStretchLastSection(true);
         tasksTable->verticalHeader()->setVisible(false);
         tasksTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
         tasksTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-        
+
         QVector<Task*>& tasks = it.value()->getTasks();
         tasksTable->setRowCount(tasks.size());
         for (int i = 0; i < tasks.size(); ++i) {
@@ -292,28 +293,62 @@ void MainWindow::showCategories(const QString& workspaceName)
             tasksTable->setItem(i, 2, new QTableWidgetItem(task->getStatus()));
             tasksTable->setItem(i, 3, new QTableWidgetItem(task->getPriority()));
             tasksTable->setItem(i, 4, new QTableWidgetItem(task->getDifficulty()));
-            
-            QPushButton *deleteButton = new QPushButton(tr("Delete"), tasksTable);
-            deleteButton->setProperty("workspaceName", workspaceName);
-            deleteButton->setProperty("categoryName", it.key());
-            deleteButton->setProperty("taskDescription", task->getDescription());
-            connect(deleteButton, &QPushButton::clicked, this, &MainWindow::removeTask);
-            
-            tasksTable->setCellWidget(i, 5, deleteButton);
+
+            QHBoxLayout *buttonLayout = new QHBoxLayout();
+
+            QPushButton *pendingBtn = new QPushButton("Pending", tasksTable);
+            pendingBtn->setProperty("workspaceName", workspaceName);
+            pendingBtn->setProperty("categoryName", it.key());
+            pendingBtn->setProperty("taskDescription", task->getDescription());
+            connect(pendingBtn, &QPushButton::clicked, this, [this, workspaceName, it, task]() {
+                changeTaskStatus(workspaceName, it.key(), task->getDescription(), "Pending");
+            });
+
+            QPushButton *inProgressBtn = new QPushButton("In Progress", tasksTable);
+            inProgressBtn->setProperty("workspaceName", workspaceName);
+            inProgressBtn->setProperty("categoryName", it.key());
+            inProgressBtn->setProperty("taskDescription", task->getDescription());
+            connect(inProgressBtn, &QPushButton::clicked, this, [this, workspaceName, it, task]() {
+                changeTaskStatus(workspaceName, it.key(), task->getDescription(), "In Progress");
+            });
+
+            QPushButton *completedBtn = new QPushButton("Completed", tasksTable);
+            completedBtn->setProperty("workspaceName", workspaceName);
+            completedBtn->setProperty("categoryName", it.key());
+            completedBtn->setProperty("taskDescription", task->getDescription());
+            connect(completedBtn, &QPushButton::clicked, this, [this, workspaceName, it, task]() {
+                changeTaskStatus(workspaceName, it.key(), task->getDescription(), "Completed");
+            });
+
+            QPushButton *deleteBtn = new QPushButton(tr("Delete"), tasksTable);
+            deleteBtn->setProperty("workspaceName", workspaceName);
+            deleteBtn->setProperty("categoryName", it.key());
+            deleteBtn->setProperty("taskDescription", task->getDescription());
+            connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::removeTask);
+
+            buttonLayout->addWidget(pendingBtn);
+            buttonLayout->addWidget(inProgressBtn);
+            buttonLayout->addWidget(completedBtn);
+            buttonLayout->addWidget(deleteBtn);
+
+            QWidget *buttonWidget = new QWidget(tasksTable);
+            buttonWidget->setLayout(buttonLayout);
+            tasksTable->setCellWidget(i, 5, buttonWidget);
         }
-        
+
         categoryLayout->addWidget(addTaskButton);
         categoryLayout->addWidget(deleteCategoryButton);
         categoryLayout->addWidget(tasksTable);
-        
-        categoriesLayout->addWidget(categoryGroup);
 
+        categoriesLayout->addWidget(categoryGroup);
     }
 }
+
 
 void MainWindow::toggleSidebar()
 {
     if (sidebar->width() > 50) {
+
         int buttonY = toggleSidebarButton->y();
 
         sidebar->setFixedWidth(0);
@@ -335,14 +370,14 @@ void MainWindow::addWorkspace()
 {
     bool ok;
     QString workspaceName = QInputDialog::getText(this, tr("Add Workspace"),
-                                             tr("Workspace name:"), QLineEdit::Normal, "", &ok);
+                                                  tr("Workspace name:"), QLineEdit::Normal, "", &ok);
     if (ok && !workspaceName.isEmpty()) {
         QString sql = "INSERT INTO Workspaces (name) VALUES ('" + workspaceName + "');";
         executeSQL(sql);
-        
+
         int id = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
         workspaces[workspaceName] = new Workspace(id, workspaceName);
-        
+
         showWorkspaces();
     }
 }
@@ -366,7 +401,6 @@ void MainWindow::removeWorkspace()
     QSqlDatabase::database().transaction();
 
     try {
-
         executeSQL(QString("DELETE FROM Tasks WHERE category_id IN "
                            "(SELECT id FROM Categories WHERE workspace_id = %1)").arg(workspaceId));
 
@@ -580,59 +614,76 @@ void MainWindow::removeTask()
 void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& categoryName,
                                   const QString& taskDescription, const QString& newStatus)
 {
-    if (!workspaces.contains(workspaceName)) return;
+    if (!workspaces.contains(workspaceName)) {
+        QMessageBox::warning(this, tr("Error"), tr("Workspace not found"));
+        return;
+    }
 
     Workspace *workspace = workspaces[workspaceName];
-    if (!workspace->getCategories().contains(categoryName)) return;
+    if (!workspace->getCategories().contains(categoryName)) {
+        QMessageBox::warning(this, tr("Error"), tr("Category not found"));
+        return;
+    }
 
     Category *category = workspace->getCategories()[categoryName];
-    for (Task *task : category->getTasks()) {
-        if (compareStringsIgnoreCase(task->getDescription(), taskDescription)) {
-            QString sql = "UPDATE Tasks SET status = '" + newStatus + "' WHERE id = " +
-                          QString::number(task->getId()) + ";";
-            executeSQL(sql);
+    Task *taskToComplete = nullptr;
+    int taskIndex = -1;
 
-            QString oldStatus = task->getStatus();
-            task->setStatus(newStatus);
-
-            if (newStatus.compare("Completed", Qt::CaseInsensitive) == 0 &&
-                oldStatus.compare("Completed", Qt::CaseInsensitive) != 0) {
-
-                sql = "INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
-                      "VALUES ('" + task->getDescription() + "', " + QString::number(category->getId()) +
-                      ", '" + task->getDifficulty() + "', '" + task->getPriority() + "', '" +
-                      task->getStatus() + "', '" + task->getDeadline() + "');";
-                executeSQL(sql);
-
-                int taskId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
-                for (const auto& tag : task->getTags()) {
-                    sql = "INSERT INTO TaskTags (task_id, tag) VALUES (" + QString::number(taskId) + ", '" + tag + "');";
-                    executeSQL(sql);
-                }
-
-                sql = "DELETE FROM Tasks WHERE id = " + QString::number(task->getId()) + ";";
-                executeSQL(sql);
-
-                sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(task->getId()) + ";";
-                executeSQL(sql);
-
-                taskHistory.append(*task);
-                category->removeTask(taskDescription);
-                delete task;
-
-                QMessageBox::information(this, tr("Task Completed"),
-                                         tr("Task \"%1\" has been moved to history").arg(taskDescription));
-            } else {
-                QMessageBox::information(this, tr("Status Changed"),
-                                         tr("Status for task \"%1\" has been updated").arg(taskDescription));
-            }
-
-            showCategories(workspaceName);
-            return;
+    for (int i = 0; i < category->getTasks().size(); ++i) {
+        if (compareStringsIgnoreCase(category->getTasks()[i]->getDescription(), taskDescription)) {
+            taskToComplete = category->getTasks()[i];
+            taskIndex = i;
+            break;
         }
     }
 
-    QMessageBox::warning(this, tr("Error"), tr("Task not found"));
+    if (!taskToComplete) {
+        QMessageBox::warning(this, tr("Error"), tr("Task not found"));
+        return;
+    }
+
+    QString oldStatus = taskToComplete->getStatus();
+
+    QString sql = "UPDATE Tasks SET status = '" + newStatus + "' WHERE id = " +
+                  QString::number(taskToComplete->getId()) + ";";
+    executeSQL(sql);
+
+    taskToComplete->setStatus(newStatus);
+
+    if (newStatus.compare("Completed", Qt::CaseInsensitive) == 0 &&
+        oldStatus.compare("Completed", Qt::CaseInsensitive) != 0) {
+
+        sql = "INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
+              "VALUES ('" + taskToComplete->getDescription() + "', " + QString::number(category->getId()) +
+              ", '" + taskToComplete->getDifficulty() + "', '" + taskToComplete->getPriority() + "', '" +
+              taskToComplete->getStatus() + "', '" + taskToComplete->getDeadline() + "');";
+        executeSQL(sql);
+
+        int taskId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
+        for (const auto& tag : taskToComplete->getTags()) {
+            sql = "INSERT INTO TaskTags (task_id, tag) VALUES (" + QString::number(taskId) + ", '" + tag + "');";
+            executeSQL(sql);
+        }
+
+        sql = "DELETE FROM Tasks WHERE id = " + QString::number(taskToComplete->getId()) + ";";
+        executeSQL(sql);
+
+        sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(taskToComplete->getId()) + ";";
+        executeSQL(sql);
+
+        taskHistory.append(*taskToComplete);
+
+        Task* task = category->getTasks().takeAt(taskIndex);
+        delete task;
+
+        QMessageBox::information(this, tr("Task Completed"),
+                                 tr("Task \"%1\" has been moved to history").arg(taskDescription));
+    } else {
+        QMessageBox::information(this, tr("Status Changed"),
+                                 tr("Status for task \"%1\" has been updated").arg(taskDescription));
+    }
+
+    showCategories(workspaceName);
 }
 
 void MainWindow::showHistory()

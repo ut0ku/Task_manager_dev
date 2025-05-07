@@ -168,7 +168,6 @@ private slots:
     void toggleLanguage();
 
 private:
-    void refreshEntireUI();
     void setupUI();
     void loadWorkspaces();
     void loadCategories();
@@ -178,7 +177,6 @@ private:
     void checkDeadlines();
     void showWorkspaces();
     void showCategories(const QString& workspaceName);
-    void showTasks(const QString& workspaceName, const QString& categoryName);
     void updateUI();
     QString toLowerCase(const QString& str) const;
     bool compareStringsIgnoreCase(const QString& a, const QString& b) const;
