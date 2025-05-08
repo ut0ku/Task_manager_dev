@@ -29,18 +29,21 @@
 class Notification {
 public:
     Notification(const QString& taskDesc, const QString& deadlineDate)
-        : taskDescription(taskDesc), deadline(deadlineDate) {
+        : taskDescription(taskDesc), deadline(deadlineDate), viewed(false) {
         message = QObject::tr("Attention! Deadline for task \"%1\" expires: %2").arg(taskDesc).arg(deadlineDate);
     }
 
     QString getMessage() const { return message; }
     QString getTaskDescription() const { return taskDescription; }
     QString getDeadline() const { return deadline; }
+    bool isViewed() const { return viewed; }
+    void markAsViewed() { viewed = true; }
 
 private:
     QString message;
     QString taskDescription;
     QString deadline;
+    bool viewed;
 };
 
 class Task {

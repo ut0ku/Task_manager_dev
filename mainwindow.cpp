@@ -358,6 +358,7 @@ void MainWindow::toggleSidebar()
         toggleSidebarButton->setText("→");
         toggleSidebarButton->show();
     } else {
+
         sidebar->setFixedWidth(200);
 
         toggleSidebarButton->setParent(sidebarContent);
@@ -846,12 +847,19 @@ void MainWindow::showNotifications()
 
     QVBoxLayout layout(&notificationsDialog);
 
-    if (notifications.isEmpty()) {
+    QVector<Notification> unviewedNotifications;
+    for (const Notification &n : notifications) {
+        if (!n.isViewed()) {
+            unviewedNotifications.append(n);
+        }
+    }
+
+    if (unviewedNotifications.isEmpty()) {
         QLabel *noNotificationsLabel = new QLabel(tr("No new notifications"), &notificationsDialog);
         layout.addWidget(noNotificationsLabel);
     } else {
         QListWidget *notificationsList = new QListWidget(&notificationsDialog);
-        for (const Notification &notification : notifications) {
+        for (const Notification &notification : unviewedNotifications) {
             notificationsList->addItem(notification.getMessage());
         }
         layout.addWidget(notificationsList);
@@ -878,7 +886,6 @@ void MainWindow::showNotifications()
 
 void MainWindow::checkDeadlines()
 {
-    notifications.clear();
     QDate currentDate = QDate::currentDate();
 
     for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
@@ -890,7 +897,18 @@ void MainWindow::checkDeadlines()
                 if (!taskDeadline.isEmpty()) {
                     QDate deadlineDate = QDate::fromString(taskDeadline, "dd-MM-yyyy");
                     if (deadlineDate.isValid() && deadlineDate == currentDate) {
-                        notifications.append(Notification(task->getDescription(), taskDeadline));
+                        bool exists = false;
+                        for (const Notification &n : notifications) {
+                            if (n.getTaskDescription() == task->getDescription() &&
+                                n.getDeadline() == taskDeadline) {
+                                exists = true;
+                                break;
+                            }
+                        }
+
+                        if (!exists) {
+                            notifications.append(Notification(task->getDescription(), taskDeadline));
+                        }
                     }
                 }
             }
@@ -900,8 +918,9 @@ void MainWindow::checkDeadlines()
 
 void MainWindow::clearNotifications()
 {
-    notifications.clear();
-    executeSQL("DELETE FROM Notifications WHERE viewed = 1");
+    for (Notification &n : notifications) {
+        n.markAsViewed();
+    }
 }
 
 void MainWindow::toggleLanguage()
