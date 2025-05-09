@@ -283,12 +283,18 @@ void MainWindow::showCategories(const QString& workspaceName)
         tasksTable->verticalHeader()->setVisible(false);
         tasksTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
         tasksTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        tasksTable->setWordWrap(true);
+        tasksTable->setColumnWidth(0, 300);
 
         QVector<Task*>& tasks = it.value()->getTasks();
         tasksTable->setRowCount(tasks.size());
         for (int i = 0; i < tasks.size(); ++i) {
             Task *task = tasks[i];
-            tasksTable->setItem(i, 0, new QTableWidgetItem(task->getDescription()));
+
+            QTableWidgetItem *taskItem = new QTableWidgetItem(task->getDescription());
+            taskItem->setFlags(taskItem->flags() ^ Qt::ItemIsEditable);
+            tasksTable->setItem(i, 0, taskItem);
+
             tasksTable->setItem(i, 1, new QTableWidgetItem(task->getDeadline()));
             tasksTable->setItem(i, 2, new QTableWidgetItem(task->getStatus()));
             tasksTable->setItem(i, 3, new QTableWidgetItem(task->getPriority()));
@@ -296,45 +302,61 @@ void MainWindow::showCategories(const QString& workspaceName)
 
             QHBoxLayout *buttonLayout = new QHBoxLayout();
 
-            QPushButton *pendingBtn = new QPushButton("Pending", tasksTable);
+            QPushButton *pendingBtn = new QPushButton(tasksTable);
+            pendingBtn->setIcon(QIcon(":/icons/pending.png"));
+            pendingBtn->setToolTip("Pending");
             pendingBtn->setProperty("workspaceName", workspaceName);
             pendingBtn->setProperty("categoryName", it.key());
             pendingBtn->setProperty("taskDescription", task->getDescription());
+            pendingBtn->setFixedSize(24, 24);
             connect(pendingBtn, &QPushButton::clicked, this, [this, workspaceName, it, task]() {
                 changeTaskStatus(workspaceName, it.key(), task->getDescription(), "Pending");
             });
 
-            QPushButton *inProgressBtn = new QPushButton("In Progress", tasksTable);
+            QPushButton *inProgressBtn = new QPushButton(tasksTable);
+            inProgressBtn->setIcon(QIcon(":/icons/inprogress.png"));
+            inProgressBtn->setToolTip("In Progress");
             inProgressBtn->setProperty("workspaceName", workspaceName);
             inProgressBtn->setProperty("categoryName", it.key());
             inProgressBtn->setProperty("taskDescription", task->getDescription());
+            inProgressBtn->setFixedSize(24, 24);
             connect(inProgressBtn, &QPushButton::clicked, this, [this, workspaceName, it, task]() {
                 changeTaskStatus(workspaceName, it.key(), task->getDescription(), "In Progress");
             });
 
-            QPushButton *completedBtn = new QPushButton("Completed", tasksTable);
+            QPushButton *completedBtn = new QPushButton(tasksTable);
+            completedBtn->setIcon(QIcon(":/icons/completed.png"));
+            completedBtn->setToolTip("Completed");
             completedBtn->setProperty("workspaceName", workspaceName);
             completedBtn->setProperty("categoryName", it.key());
             completedBtn->setProperty("taskDescription", task->getDescription());
+            completedBtn->setFixedSize(24, 24);
             connect(completedBtn, &QPushButton::clicked, this, [this, workspaceName, it, task]() {
                 changeTaskStatus(workspaceName, it.key(), task->getDescription(), "Completed");
             });
 
-            QPushButton *deleteBtn = new QPushButton(tr("Delete"), tasksTable);
+            QPushButton *deleteBtn = new QPushButton(tasksTable);
+            deleteBtn->setIcon(QIcon(":/icons/delete.png"));
+            deleteBtn->setToolTip("Delete");
             deleteBtn->setProperty("workspaceName", workspaceName);
             deleteBtn->setProperty("categoryName", it.key());
             deleteBtn->setProperty("taskDescription", task->getDescription());
+            deleteBtn->setFixedSize(24, 24);
             connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::removeTask);
 
             buttonLayout->addWidget(pendingBtn);
             buttonLayout->addWidget(inProgressBtn);
             buttonLayout->addWidget(completedBtn);
             buttonLayout->addWidget(deleteBtn);
+            buttonLayout->setSpacing(2);
+            buttonLayout->setContentsMargins(0, 0, 0, 0);
 
             QWidget *buttonWidget = new QWidget(tasksTable);
             buttonWidget->setLayout(buttonLayout);
             tasksTable->setCellWidget(i, 5, buttonWidget);
         }
+
+        tasksTable->resizeRowsToContents();
 
         categoryLayout->addWidget(addTaskButton);
         categoryLayout->addWidget(deleteCategoryButton);
@@ -402,6 +424,7 @@ void MainWindow::removeWorkspace()
     QSqlDatabase::database().transaction();
 
     try {
+
         executeSQL(QString("DELETE FROM Tasks WHERE category_id IN "
                            "(SELECT id FROM Categories WHERE workspace_id = %1)").arg(workspaceId));
 
@@ -897,6 +920,7 @@ void MainWindow::checkDeadlines()
                 if (!taskDeadline.isEmpty()) {
                     QDate deadlineDate = QDate::fromString(taskDeadline, "dd-MM-yyyy");
                     if (deadlineDate.isValid() && deadlineDate == currentDate) {
+
                         bool exists = false;
                         for (const Notification &n : notifications) {
                             if (n.getTaskDescription() == task->getDescription() &&
