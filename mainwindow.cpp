@@ -73,7 +73,6 @@ void MainWindow::setupUI()
     sidebarLayout->addWidget(toggleSidebarButton);
     sidebarLayout->addWidget(addWorkspaceButton);
     toggleSidebarButton->raise();
-
     showWorkspaces();
 
     sidebar->setWidget(sidebarContent);
@@ -249,6 +248,12 @@ void MainWindow::showWorkspaces()
 
 void MainWindow::showCategories(const QString& workspaceName)
 {
+    QString cleanWorkspaceName = workspaceName;
+    cleanWorkspaceName.replace(tr("Workspace: "), "");
+    cleanWorkspaceName.replace(tr("Рабочее пространство: "), "");
+
+    currentWorkspaceLabel->setText(tr("Workspace: %1").arg(cleanWorkspaceName));
+
     QLayoutItem* item;
     while ((item = categoriesLayout->takeAt(0))) {
         delete item->widget();
@@ -380,7 +385,6 @@ void MainWindow::toggleSidebar()
         toggleSidebarButton->setText("→");
         toggleSidebarButton->show();
     } else {
-
         sidebar->setFixedWidth(200);
 
         toggleSidebarButton->setParent(sidebarContent);
@@ -424,7 +428,6 @@ void MainWindow::removeWorkspace()
     QSqlDatabase::database().transaction();
 
     try {
-
         executeSQL(QString("DELETE FROM Tasks WHERE category_id IN "
                            "(SELECT id FROM Categories WHERE workspace_id = %1)").arg(workspaceId));
 
@@ -461,7 +464,11 @@ void MainWindow::workspaceSelected()
     QPushButton *button = qobject_cast<QPushButton*>(sender());
     if (!button) return;
 
-    QString workspaceName = button->property("workspaceName").toString();
+    QString workspaceName = button->text();
+
+    workspaceName.replace(tr("Workspace: "), "");
+    workspaceName.replace(tr("Рабочее пространство: "), "");
+
     showCategories(workspaceName);
 }
 
@@ -920,7 +927,6 @@ void MainWindow::checkDeadlines()
                 if (!taskDeadline.isEmpty()) {
                     QDate deadlineDate = QDate::fromString(taskDeadline, "dd-MM-yyyy");
                     if (deadlineDate.isValid() && deadlineDate == currentDate) {
-
                         bool exists = false;
                         for (const Notification &n : notifications) {
                             if (n.getTaskDescription() == task->getDescription() &&
@@ -949,20 +955,23 @@ void MainWindow::clearNotifications()
 
 void MainWindow::toggleLanguage()
 {
-    isEnglish = !isEnglish;
+    QApplication::removeTranslator(&translator);
 
     if (isEnglish) {
-        if (translator.load(":/translations/taskmanager_en.qm")) {
-            QApplication::instance()->installTranslator(&translator);
+        if (translator.load(":/translations/taskmanager_ru.qm")) {
+            QApplication::installTranslator(&translator);
         }
-        languageButton->setText(tr("Русский"));
     } else {
-        QApplication::instance()->removeTranslator(&translator);
-        languageButton->setText(tr("English"));
+        if (translator.load(":/translations/taskmanager_en.qm")) {
+            QApplication::installTranslator(&translator);
+        }
     }
 
+    isEnglish = !isEnglish;
+    languageButton->setText(isEnglish ? tr("Русский") : tr("English"));
     updateUI();
 }
+
 
 void MainWindow::updateUI()
 {
@@ -973,17 +982,20 @@ void MainWindow::updateUI()
     addCategoryButton->setText(tr("Add Category"));
     languageButton->setText(isEnglish ? tr("Русский") : tr("English"));
 
-    if (currentWorkspaceLabel->text() != tr("Select a workspace")) {
-        QString workspaceName = currentWorkspaceLabel->text().replace(tr("Workspace: "), "");
-        currentWorkspaceLabel->setText(tr("Workspace: %1").arg(workspaceName));
-    } else {
-        currentWorkspaceLabel->setText(tr("Select a workspace"));
+    if (!currentWorkspaceLabel->text().isEmpty()) {
+        QString cleanName = currentWorkspaceLabel->text();
+        cleanName.replace(tr("Workspace: "), "");
+        cleanName.replace(tr("Рабочее пространство: "), "");
+        currentWorkspaceLabel->setText(tr("Workspace: %1").arg(cleanName));
     }
 
     showWorkspaces();
-    if (!currentWorkspaceLabel->text().contains(tr("Select a workspace"))) {
-        QString workspaceName = currentWorkspaceLabel->text().replace(tr("Workspace: "), "");
-        showCategories(workspaceName);
+    if (!currentWorkspaceLabel->text().isEmpty() &&
+        !currentWorkspaceLabel->text().contains(tr("Select a workspace"))) {
+        QString cleanName = currentWorkspaceLabel->text();
+        cleanName.replace(tr("Workspace: "), "");
+        cleanName.replace(tr("Рабочее пространство: "), "");
+        showCategories(cleanName);
     }
 }
 

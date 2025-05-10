@@ -6,12 +6,18 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    
+
     QTranslator translator;
-    if (translator.load(QLocale(), QLatin1String("taskmanager"), QLatin1String("_"), QLatin1String(":/translations"))) {
-        a.installTranslator(&translator);
+    const QStringList uiLanguages = QLocale::system().uiLanguages();
+
+    for (const QString &locale : uiLanguages) {
+        const QString baseName = "taskmanager_" + QLocale(locale).name();
+        if (translator.load(":/translations/" + baseName)) {
+            a.installTranslator(&translator);
+            break;
+        }
     }
-    
+
     MainWindow w;
     w.show();
     return a.exec();

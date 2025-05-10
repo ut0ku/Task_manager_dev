@@ -184,6 +184,7 @@ private:
     QString toLowerCase(const QString& str) const;
     bool compareStringsIgnoreCase(const QString& a, const QString& b) const;
 
+
     QSqlDatabase db;
     QVector<Notification> notifications;
     QMap<QString, Workspace*> workspaces;
