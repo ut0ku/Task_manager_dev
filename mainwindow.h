@@ -190,6 +190,8 @@ private:
     QMap<QString, Workspace*> workspaces;
     QVector<Task> taskHistory;
     QTranslator translator;
+    QTranslator qtTranslator;
+    QTranslator appTranslator;
     bool isEnglish;
 
     // UI Elements

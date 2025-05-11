@@ -73,6 +73,7 @@ void MainWindow::setupUI()
     sidebarLayout->addWidget(toggleSidebarButton);
     sidebarLayout->addWidget(addWorkspaceButton);
     toggleSidebarButton->raise();
+
     showWorkspaces();
 
     sidebar->setWidget(sidebarContent);
@@ -385,6 +386,7 @@ void MainWindow::toggleSidebar()
         toggleSidebarButton->setText("→");
         toggleSidebarButton->show();
     } else {
+
         sidebar->setFixedWidth(200);
 
         toggleSidebarButton->setParent(sidebarContent);
@@ -474,7 +476,9 @@ void MainWindow::workspaceSelected()
 
 void MainWindow::addCategory()
 {
-    QString workspaceName = currentWorkspaceLabel->text().replace(tr("Workspace: "), "");
+    QString currentText = currentWorkspaceLabel->text();
+    QString workspaceName = currentText.replace(tr("Workspace: "), "").replace(tr("Рабочее пространство: "), "");
+
     if (!workspaces.contains(workspaceName)) return;
 
     bool ok;
@@ -955,19 +959,20 @@ void MainWindow::clearNotifications()
 
 void MainWindow::toggleLanguage()
 {
+    isEnglish = !isEnglish;
+
     QApplication::removeTranslator(&translator);
 
     if (isEnglish) {
-        if (translator.load(":/translations/taskmanager_ru.qm")) {
+        if (translator.load(":/translations/taskmanager_en.qm")) {
             QApplication::installTranslator(&translator);
         }
     } else {
-        if (translator.load(":/translations/taskmanager_en.qm")) {
+        if (translator.load(":/translations/taskmanager_ru.qm")) {
             QApplication::installTranslator(&translator);
         }
     }
 
-    isEnglish = !isEnglish;
     languageButton->setText(isEnglish ? tr("Русский") : tr("English"));
     updateUI();
 }
@@ -982,8 +987,9 @@ void MainWindow::updateUI()
     addCategoryButton->setText(tr("Add Category"));
     languageButton->setText(isEnglish ? tr("Русский") : tr("English"));
 
-    if (!currentWorkspaceLabel->text().isEmpty()) {
-        QString cleanName = currentWorkspaceLabel->text();
+    QString currentText = currentWorkspaceLabel->text();
+    if (currentText != tr("Select a workspace")) {
+        QString cleanName = currentText;
         cleanName.replace(tr("Workspace: "), "");
         cleanName.replace(tr("Рабочее пространство: "), "");
         currentWorkspaceLabel->setText(tr("Workspace: %1").arg(cleanName));
