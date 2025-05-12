@@ -73,7 +73,6 @@ void MainWindow::setupUI()
     sidebarLayout->addWidget(toggleSidebarButton);
     sidebarLayout->addWidget(addWorkspaceButton);
     toggleSidebarButton->raise();
-
     showWorkspaces();
 
     sidebar->setWidget(sidebarContent);
@@ -931,6 +930,7 @@ void MainWindow::checkDeadlines()
                 if (!taskDeadline.isEmpty()) {
                     QDate deadlineDate = QDate::fromString(taskDeadline, "dd-MM-yyyy");
                     if (deadlineDate.isValid() && deadlineDate == currentDate) {
+
                         bool exists = false;
                         for (const Notification &n : notifications) {
                             if (n.getTaskDescription() == task->getDescription() &&
