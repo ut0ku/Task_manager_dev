@@ -20,7 +20,6 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QAction>
-#include <QTranslator>
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QDate>
@@ -28,9 +27,9 @@
 
 class Notification {
 public:
-    Notification(const QString& taskDesc, const QString& deadlineDate)
+    Notification(const QString& taskDesc, const QString& deadlineDate, bool isEnglish = false)
         : taskDescription(taskDesc), deadline(deadlineDate), viewed(false) {
-        message = QObject::tr("Attention! Deadline for task \"%1\" expires: %2").arg(taskDesc).arg(deadlineDate);
+        updateMessage(isEnglish);
     }
 
     QString getMessage() const { return message; }
@@ -38,6 +37,11 @@ public:
     QString getDeadline() const { return deadline; }
     bool isViewed() const { return viewed; }
     void markAsViewed() { viewed = true; }
+    void updateMessage(bool isEnglish) {
+        message = isEnglish ?
+                      QString("Attention! Deadline for task \"%1\" expires: %2").arg(taskDescription).arg(deadline) :
+                      QString("Внимание! Срок выполнения задачи \"%1\" истекает: %2").arg(taskDescription).arg(deadline);
+    }
 
 private:
     QString message;
@@ -62,7 +66,6 @@ public:
     QString getPriority() const { return priority; }
     QString getStatus() const { return status; }
     QString getDeadline() const { return deadline; }
-    QString getWorkspace() const { return workspace; }
 
     void setDifficulty(const QString& diff) { difficulty = diff; }
     void setPriority(const QString& prio) { priority = prio; }
@@ -70,15 +73,10 @@ public:
     void setDeadline(const QString& dl) { deadline = dl; }
 
     int daysUntilDeadline() const {
-        if (deadline.isEmpty()) {
-            return -1;
-        }
+        if (deadline.isEmpty()) return -1;
         QDate deadlineDate = QDate::fromString(deadline, "dd-MM-yyyy");
-        if (!deadlineDate.isValid()) {
-            return -1;
-        }
-        QDate currentDate = QDate::currentDate();
-        return currentDate.daysTo(deadlineDate);
+        if (!deadlineDate.isValid()) return -1;
+        return QDate::currentDate().daysTo(deadlineDate);
     }
 
 private:
@@ -90,7 +88,6 @@ private:
     QString priority;
     QString status;
     QString deadline;
-    QString workspace;
 };
 
 class Category {
@@ -123,11 +120,9 @@ public:
     Workspace(int id, const QString& name) : id(id), name(name) {}
 
     int getId() const { return id; }
-
     void addCategory(const QString& categoryName) {
         categories[categoryName] = new Category(categories.size() + 1, categoryName);
     }
-
     QMap<QString, Category*>& getCategories() { return categories; }
     QString getName() const { return name; }
 
@@ -152,6 +147,12 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+signals:
+    void languageChanged();
+
+protected:
+    void changeEvent(QEvent *event) override;
+
 private slots:
     void toggleSidebar();
     void addWorkspace();
@@ -171,6 +172,12 @@ private slots:
     void toggleLanguage();
 
 private:
+    QString translate(const QString& text) const;
+    void retranslateUi();
+    QString tr(const QString& text) const;
+    QDialog* createNotificationDialog();
+    QDialog* createHistoryDialog();
+    QInputDialog* createInputDialog(const QString &title, const QString &label);
     void setupUI();
     void loadWorkspaces();
     void loadCategories();
@@ -184,14 +191,10 @@ private:
     QString toLowerCase(const QString& str) const;
     bool compareStringsIgnoreCase(const QString& a, const QString& b) const;
 
-
     QSqlDatabase db;
     QVector<Notification> notifications;
     QMap<QString, Workspace*> workspaces;
     QVector<Task> taskHistory;
-    QTranslator translator;
-    QTranslator qtTranslator;
-    QTranslator appTranslator;
     bool isEnglish;
 
     // UI Elements
