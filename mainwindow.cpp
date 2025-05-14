@@ -150,7 +150,7 @@ void MainWindow::setupUI()
     mainLayout = new QVBoxLayout(mainWidget);
 
     sidebar = new QScrollArea(this);
-    sidebar->setFixedWidth(200);
+    sidebar->setFixedWidth(250);
     sidebar->setWidgetResizable(true);
 
     sidebarContent = new QWidget();
@@ -285,8 +285,7 @@ void MainWindow::loadTasks()
     }
 }
 
-void MainWindow::loadTaskHistory()
-{
+void MainWindow::loadTaskHistory() {
     QSqlQuery query("SELECT id, description, category_id, difficulty, priority, status, deadline FROM TaskHistory;");
     while (query.next()) {
         int id = query.value(0).toInt();
@@ -297,13 +296,13 @@ void MainWindow::loadTaskHistory()
         QString status = query.value(5).toString();
         QString deadline = query.value(6).toString();
 
-        QStringList tags;
-        QSqlQuery tagQuery("SELECT tag FROM TaskTags WHERE task_id = " + QString::number(id) + ";");
-        while (tagQuery.next()) {
-            tags.append(tagQuery.value(0).toString());
+        if (isEnglish && status == "Завершено") {
+            status = "Completed";
+        } else if (!isEnglish && status == "Completed") {
+            status = "Завершено";
         }
 
-        Task task(id, description, "", tags, difficulty, priority, status, deadline);
+        Task task(id, description, "", QStringList(), difficulty, priority, status, deadline);
         taskHistory.append(task);
     }
 }
@@ -326,22 +325,29 @@ void MainWindow::showWorkspaces()
         delete item;
     }
 
-    for (auto it = workspaces.begin(); it != workspaces.end(); ++it) {
-        QPushButton *workspaceButton = new QPushButton(it.key(), sidebarContent);
-        workspaceButton->setProperty("workspaceName", it.key());
-        connect(workspaceButton, &QPushButton::clicked, this, &MainWindow::workspaceSelected);
+    for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
+        QWidget* workspaceWidget = new QWidget(sidebarContent);
+        QHBoxLayout* workspaceLayout = new QHBoxLayout(workspaceWidget);
+        workspaceLayout->setContentsMargins(0, 0, 0, 0);
+        workspaceLayout->setSpacing(5);
 
-        QPushButton *deleteButton = new QPushButton("×", sidebarContent);
-        deleteButton->setFixedSize(20, 20);
-        deleteButton->setProperty("workspaceName", it.key());
-        connect(deleteButton, &QPushButton::clicked, this, &MainWindow::removeWorkspace);
+        QPushButton* workspaceBtn = new QPushButton(workspaceIt.key(), workspaceWidget);
+        workspaceBtn->setProperty("workspaceName", workspaceIt.key());
+        workspaceBtn->setMinimumWidth(160);
+        workspaceBtn->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
+        connect(workspaceBtn, &QPushButton::clicked, this, &MainWindow::workspaceSelected);
 
-        QHBoxLayout *workspaceLayout = new QHBoxLayout();
-        workspaceLayout->addWidget(workspaceButton);
-        workspaceLayout->addWidget(deleteButton);
+        QPushButton* deleteBtn = new QPushButton("×", workspaceWidget);
+        deleteBtn->setProperty("workspaceName", workspaceIt.key());
+        deleteBtn->setFixedSize(25, 25);
+        connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::removeWorkspace);
 
-        sidebarLayout->addLayout(workspaceLayout);
+        workspaceLayout->addWidget(workspaceBtn);
+        workspaceLayout->addWidget(deleteBtn);
+        sidebarLayout->addWidget(workspaceWidget);
     }
+
+    sidebarLayout->addStretch();
 }
 
 void MainWindow::showCategories(const QString& workspaceName) {
@@ -458,21 +464,20 @@ void MainWindow::toggleSidebar()
 {
     if (sidebar->width() > 50) {
 
-        int buttonY = toggleSidebarButton->y();
-
         sidebar->setFixedWidth(0);
-
+        toggleSidebarButton->setText(">");
         toggleSidebarButton->setParent(this);
-        toggleSidebarButton->move(0, buttonY);
-        toggleSidebarButton->setText("→");
+
+        toggleSidebarButton->move(20, 20);
+
+        toggleSidebarButton->raise();
         toggleSidebarButton->show();
     } else {
 
-        sidebar->setFixedWidth(200);
-
+        sidebar->setFixedWidth(250);
+        toggleSidebarButton->setText("<");
         toggleSidebarButton->setParent(sidebarContent);
         sidebarLayout->insertWidget(0, toggleSidebarButton);
-        toggleSidebarButton->setText("←");
     }
 }
 
@@ -756,13 +761,13 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
                                   const QString& taskDescription, const QString& newStatus)
 {
     if (!workspaces.contains(workspaceName)) {
-        QMessageBox::warning(this, translate("Error"), translate("Workspace not found"));
+        QMessageBox::warning(this, translate("Ошибка"), translate("Рабочее пространство не найдено"));
         return;
     }
 
     Workspace *workspace = workspaces[workspaceName];
     if (!workspace->getCategories().contains(categoryName)) {
-        QMessageBox::warning(this, translate("Error"), translate("Category not found"));
+        QMessageBox::warning(this, translate("Ошибка"), translate("Категория не найдена"));
         return;
     }
 
@@ -779,52 +784,66 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
     }
 
     if (!taskToComplete) {
-        QMessageBox::warning(this, translate("Error"), translate("Task not found"));
+        QMessageBox::warning(this, translate("Ошибка"), translate("Задача не найдена"));
         return;
     }
 
-    QString oldStatus = taskToComplete->getStatus();
+    QString statusToSet = newStatus;
+    QString currentStatus = taskToComplete->getStatus();
 
-    QString sql = "UPDATE Tasks SET status = '" + newStatus + "' WHERE id = " +
-                  QString::number(taskToComplete->getId()) + ";";
+    bool isCompleting = (newStatus == "Завершено" || newStatus == "Completed") &&
+                        (currentStatus != "Завершено" && currentStatus != "Completed");
+
+    QString sql = QString("UPDATE Tasks SET status = '%1' WHERE id = %2")
+                      .arg(statusToSet)
+                      .arg(taskToComplete->getId());
     executeSQL(sql);
 
-    taskToComplete->setStatus(newStatus);
+    taskToComplete->setStatus(statusToSet);
 
-    if (newStatus.compare("Completed", Qt::CaseInsensitive) == 0 &&
-        oldStatus.compare("Completed", Qt::CaseInsensitive) != 0) {
+    if (isCompleting) {
 
-        sql = "INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
-              "VALUES ('" + taskToComplete->getDescription() + "', " + QString::number(category->getId()) +
-              ", '" + taskToComplete->getDifficulty() + "', '" + taskToComplete->getPriority() + "', '" +
-              taskToComplete->getStatus() + "', '" + taskToComplete->getDeadline() + "');";
+        sql = QString("INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
+                      "VALUES ('%1', %2, '%3', '%4', '%5', '%6')")
+                  .arg(taskToComplete->getDescription())
+                  .arg(category->getId())
+                  .arg(taskToComplete->getDifficulty())
+                  .arg(taskToComplete->getPriority())
+                  .arg(isEnglish ? "Completed" : "Завершено")
+                  .arg(taskToComplete->getDeadline());
         executeSQL(sql);
 
-        int taskId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
-        for (const auto& tag : taskToComplete->getTags()) {
-            sql = "INSERT INTO TaskTags (task_id, tag) VALUES (" + QString::number(taskId) + ", '" + tag + "');";
-            executeSQL(sql);
+        int historyId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
+
+        for (const QString &tag : taskToComplete->getTags()) {
+            executeSQL(QString("INSERT INTO TaskTags (task_id, tag) VALUES (%1, '%2')")
+                           .arg(historyId).arg(tag));
         }
 
-        sql = "DELETE FROM Tasks WHERE id = " + QString::number(taskToComplete->getId()) + ";";
-        executeSQL(sql);
+        executeSQL(QString("DELETE FROM Tasks WHERE id = %1").arg(taskToComplete->getId()));
+        executeSQL(QString("DELETE FROM TaskTags WHERE task_id = %1").arg(taskToComplete->getId()));
 
-        sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(taskToComplete->getId()) + ";";
-        executeSQL(sql);
+        Task historyTask(taskToComplete->getId(), taskToComplete->getDescription(),
+                         categoryName, taskToComplete->getTags(),
+                         taskToComplete->getDifficulty(), taskToComplete->getPriority(),
+                         isEnglish ? "Completed" : "Завершено", taskToComplete->getDeadline());
+        taskHistory.append(historyTask);
 
-        taskHistory.append(*taskToComplete);
+        delete category->getTasks().takeAt(taskIndex);
 
-        Task* task = category->getTasks().takeAt(taskIndex);
-        delete task;
-
-        QMessageBox::information(this, translate("Task Completed"),
-                                 translate("Task \"%1\" has been moved to history").arg(taskDescription));
+        QMessageBox::information(this, translate("Задача завершена"),
+                                 translate("Задача \"%1\" перемещена в историю").arg(taskDescription));
     } else {
-        QMessageBox::information(this, tr("Status Changed"),
-                                 translate("Status for task \"%1\" has been updated").arg(taskDescription));
+        QMessageBox::information(this, translate("Статус изменен"),
+                                 translate("Статус задачи \"%1\" обновлен").arg(taskDescription));
     }
 
     showCategories(workspaceName);
+}
+
+bool MainWindow::isCompletedStatus(const QString& status) const {
+    return compareStringsIgnoreCase(status, "Завершено") ||
+           compareStringsIgnoreCase(status, "Completed");
 }
 
 void MainWindow::showHistory()
@@ -1036,7 +1055,6 @@ void MainWindow::checkDeadlines()
                 if (!taskDeadline.isEmpty()) {
                     QDate deadlineDate = QDate::fromString(taskDeadline, "dd-MM-yyyy");
                     if (deadlineDate.isValid() && deadlineDate == currentDate) {
-
                         bool exists = false;
                         for (const Notification &n : notifications) {
                             if (n.getTaskDescription() == task->getDescription() &&
@@ -1069,7 +1087,6 @@ void MainWindow::toggleLanguage() {
     for (Notification &n : notifications) {
         n.updateMessage(isEnglish);
     }
-
     retranslateUi();
 }
 
@@ -1138,7 +1155,6 @@ void MainWindow::updateUI() {
 }
 
 void MainWindow::retranslateUi() {
-
     setWindowTitle(translate("Менеджер задач"));
     addWorkspaceButton->setText(translate("Добавить рабочее пространство"));
     addCategoryButton->setText(translate("Добавить категорию"));

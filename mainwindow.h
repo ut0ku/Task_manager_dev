@@ -172,6 +172,7 @@ private slots:
     void toggleLanguage();
 
 private:
+    bool isCompletedStatus(const QString& status) const;
     QString translate(const QString& text) const;
     void retranslateUi();
     QString tr(const QString& text) const;
