@@ -170,6 +170,7 @@ private slots:
     void showNotifications();
     void clearNotifications();
     void toggleLanguage();
+    void searchTasksByTags();
 
 private:
     bool isCompletedStatus(const QString& status) const;
@@ -199,6 +200,7 @@ private:
     bool isEnglish;
 
     // UI Elements
+    QPushButton *searchByTagsButton;
     QWidget *mainWidget;
     QVBoxLayout *mainLayout;
     QScrollArea *sidebar;
@@ -216,6 +218,7 @@ private:
     QScrollArea *categoriesScroll;
     QWidget *categoriesContent;
     QVBoxLayout *categoriesLayout;
+    QVector<QPair<QString, QString>> findTasksByTags(const QStringList& tags);
 };
 
 #endif // MAINWINDOW_H

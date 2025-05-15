@@ -31,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
         return;
     }
 
+    // Create tables if they don't exist
     executeSQL("CREATE TABLE IF NOT EXISTS Workspaces (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);");
     executeSQL("CREATE TABLE IF NOT EXISTS Categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, workspace_id INTEGER, FOREIGN KEY(workspace_id) REFERENCES Workspaces(id));");
     executeSQL("CREATE TABLE IF NOT EXISTS Tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category_id INTEGER, difficulty TEXT, priority TEXT, status TEXT, deadline TEXT, FOREIGN KEY(category_id) REFERENCES Categories(id));");
@@ -138,7 +139,18 @@ QString MainWindow::translate(const QString& text) const {
         {"Введите имя категории:", "Enter category name:"},
         {"Задача не найдена в истории", "Task not found in history"},
         {"Задача восстановлена", "Task restored"},
-        {"Задача удалена", "Task deleted"}
+        {"Задача удалена", "Task deleted"},
+
+        // Поиск задача по тегам
+        {"Search by Tags", "Поиск по тегам"},
+        {"Search Tasks by Tags", "Поиск задач по тегам"},
+        {"Enter tags (comma separated):", "Введите теги (через запятую):"},
+        {"Search Results", "Результаты поиска"},
+        {"No tasks found with these tags", "Задачи с указанными тегами не найдены"},
+        {"Tasks found in:", "Задачи найдены в:"},
+        {"Workspace", "Рабочее пространство"},
+        {"Category", "Категория"},
+        {"Close", "Закрыть"}
     };
 
     return isEnglish ? translations.value(text, text) : text;
@@ -211,9 +223,13 @@ void MainWindow::setupUI()
     languageButton = new QPushButton(translate("English"), this);
     connect(languageButton, &QPushButton::clicked, this, &MainWindow::toggleLanguage);
 
+    searchByTagsButton = new QPushButton(translate("Search by Tags"), this);
+    connect(searchByTagsButton, &QPushButton::clicked, this, &MainWindow::searchTasksByTags);
+
     rightSidebarLayout->addWidget(historyButton);
     rightSidebarLayout->addWidget(notificationsButton);
     rightSidebarLayout->addWidget(languageButton);
+    rightSidebarLayout->addWidget(searchByTagsButton);
 
     QHBoxLayout *contentLayout = new QHBoxLayout();
     contentLayout->addWidget(sidebar);
@@ -225,6 +241,8 @@ void MainWindow::setupUI()
 
     resize(1000, 600);
     setWindowTitle(translate("Task Manager"));
+
+
 }
 
 void MainWindow::loadWorkspaces()
@@ -547,7 +565,6 @@ void MainWindow::workspaceSelected()
     if (!button) return;
 
     QString workspaceName = button->text();
-
     workspaceName.replace(translate("Workspace: "), "");
     workspaceName.replace(translate("Рабочее пространство: "), "");
 
@@ -802,7 +819,6 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
     taskToComplete->setStatus(statusToSet);
 
     if (isCompleting) {
-
         sql = QString("INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
                       "VALUES ('%1', %2, '%3', '%4', '%5', '%6')")
                   .arg(taskToComplete->getDescription())
@@ -1087,6 +1103,7 @@ void MainWindow::toggleLanguage() {
     for (Notification &n : notifications) {
         n.updateMessage(isEnglish);
     }
+
     retranslateUi();
 }
 
@@ -1121,6 +1138,7 @@ void MainWindow::updateUI() {
     historyButton->setText(translate("История"));
     notificationsButton->setText(translate("Уведомления"));
     languageButton->setText(isEnglish ? translate("Русский") : translate("English"));
+    searchByTagsButton->setText(translate("Search by Tags"));
 
     QString currentText = currentWorkspaceLabel->text();
     if (currentText != translate("Выберите рабочее пространство")) {
@@ -1162,6 +1180,7 @@ void MainWindow::retranslateUi() {
     notificationsButton->setText(translate("Уведомления"));
     languageButton->setText(isEnglish ? "Русский" : "English");
 
+    searchByTagsButton->setText(translate("Search by Tags"));
     QString currentText = currentWorkspaceLabel->text();
     if (currentText != translate("Выберите рабочее пространство")) {
         QString cleanName = currentText;
@@ -1178,6 +1197,62 @@ void MainWindow::retranslateUi() {
     }
 }
 
+void MainWindow::searchTasksByTags() {
+    bool ok;
+    QString tagsInput = QInputDialog::getText(this, translate("Search Tasks by Tags"),
+                                              translate("Enter tags (comma separated):"),
+                                              QLineEdit::Normal, "", &ok);
+    if (!ok || tagsInput.isEmpty()) return;
+
+    QStringList tags = tagsInput.split(',', Qt::SkipEmptyParts);
+    for (QString& tag : tags) {
+        tag = tag.trimmed();
+    }
+
+    QVector<QPair<QString, QString>> results = findTasksByTags(tags);
+
+    QDialog resultsDialog(this);
+    resultsDialog.setWindowTitle(translate("Search Results"));
+    resultsDialog.resize(400, 300);
+
+    QVBoxLayout layout(&resultsDialog);
+
+    if (results.isEmpty()) {
+        QLabel* noResultsLabel = new QLabel(translate("No tasks found with these tags"), &resultsDialog);
+        layout.addWidget(noResultsLabel);
+    } else {
+        QLabel* resultsLabel = new QLabel(translate("Tasks found in:"), &resultsDialog);
+        layout.addWidget(resultsLabel);
+
+        QTableWidget* resultsTable = new QTableWidget(0, 2, &resultsDialog);
+        resultsTable->setHorizontalHeaderLabels({translate("Workspace"), translate("Category")});
+        resultsTable->horizontalHeader()->setStretchLastSection(true);
+        resultsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+        QSet<QPair<QString, QString>> uniqueResults;
+        for (const auto& result : results) {
+            uniqueResults.insert(result);
+        }
+
+        resultsTable->setRowCount(uniqueResults.size());
+        int row = 0;
+        for (const auto& result : uniqueResults) {
+            resultsTable->setItem(row, 0, new QTableWidgetItem(result.first));
+            resultsTable->setItem(row, 1, new QTableWidgetItem(result.second));
+            row++;
+        }
+
+        layout.addWidget(resultsTable);
+    }
+
+    QPushButton* closeButton = new QPushButton(translate("Close"), &resultsDialog);
+    layout.addWidget(closeButton);
+
+    connect(closeButton, &QPushButton::clicked, &resultsDialog, &QDialog::accept);
+
+    resultsDialog.exec();
+}
+
 QString MainWindow::toLowerCase(const QString& str) const
 {
     return str.toLower();
@@ -1186,4 +1261,26 @@ QString MainWindow::toLowerCase(const QString& str) const
 bool MainWindow::compareStringsIgnoreCase(const QString& a, const QString& b) const
 {
     return a.compare(b, Qt::CaseInsensitive) == 0;
+}
+
+QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& tags) {
+    QVector<QPair<QString, QString>> results;
+
+    if (tags.isEmpty()) return results;
+
+    for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
+        QMap<QString, Category*>& categories = workspaceIt.value()->getCategories();
+        for (auto categoryIt = categories.begin(); categoryIt != categories.end(); ++categoryIt) {
+            for (Task* task : categoryIt.value()->getTasks()) {
+                for (const QString& taskTag : task->getTags()) {
+                    if (tags.contains(taskTag, Qt::CaseInsensitive)) {
+                        results.append(qMakePair(workspaceIt.key(), categoryIt.key()));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return results;
 }

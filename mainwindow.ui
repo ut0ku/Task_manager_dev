@@ -101,7 +101,7 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>598</width>
+              <width>583</width>
               <height>484</height>
              </rect>
             </property>
@@ -133,6 +133,13 @@
           <widget class="QPushButton" name="languageButton">
            <property name="text">
             <string>English</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="searchByTagsButton">
+           <property name="text">
+            <string>Search by Tags</string>
            </property>
           </widget>
          </item>
