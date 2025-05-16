@@ -24,6 +24,8 @@
 #include <QGroupBox>
 #include <QDate>
 #include <QApplication>
+#include <QPropertyAnimation>
+#include <QParallelAnimationGroup>
 
 class Notification {
 public:
@@ -171,6 +173,7 @@ private slots:
     void clearNotifications();
     void toggleLanguage();
     void searchTasksByTags();
+    void toggleTheme();
 
 private:
     bool isCompletedStatus(const QString& status) const;
@@ -192,6 +195,9 @@ private:
     void updateUI();
     QString toLowerCase(const QString& str) const;
     bool compareStringsIgnoreCase(const QString& a, const QString& b) const;
+    bool isDarkTheme;
+    void applyTheme(bool dark);
+    QString currentThemeStyle;
 
     QSqlDatabase db;
     QVector<Notification> notifications;
@@ -219,6 +225,7 @@ private:
     QWidget *categoriesContent;
     QVBoxLayout *categoriesLayout;
     QVector<QPair<QString, QString>> findTasksByTags(const QStringList& tags);
+    QPushButton *themeButton;
 };
 
 #endif // MAINWINDOW_H

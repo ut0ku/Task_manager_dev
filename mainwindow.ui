@@ -143,6 +143,13 @@
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QPushButton" name="themeButton">
+           <property name="text">
+            <string>Dark Theme</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </item>

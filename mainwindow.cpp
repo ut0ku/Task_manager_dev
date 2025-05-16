@@ -21,7 +21,7 @@ static QString translate(const char* text) {
 }
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), isEnglish(false)
+    : QMainWindow(parent), isEnglish(false), isDarkTheme(false)
 {
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("task_manager.db");
@@ -31,12 +31,14 @@ MainWindow::MainWindow(QWidget *parent)
         return;
     }
 
-    // Create tables if they don't exist
     executeSQL("CREATE TABLE IF NOT EXISTS Workspaces (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);");
     executeSQL("CREATE TABLE IF NOT EXISTS Categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, workspace_id INTEGER, FOREIGN KEY(workspace_id) REFERENCES Workspaces(id));");
     executeSQL("CREATE TABLE IF NOT EXISTS Tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category_id INTEGER, difficulty TEXT, priority TEXT, status TEXT, deadline TEXT, FOREIGN KEY(category_id) REFERENCES Categories(id));");
     executeSQL("CREATE TABLE IF NOT EXISTS TaskTags (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER, tag TEXT, FOREIGN KEY(task_id) REFERENCES Tasks(id));");
     executeSQL("CREATE TABLE IF NOT EXISTS TaskHistory (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category_id INTEGER, difficulty TEXT, priority TEXT, status TEXT, deadline TEXT, FOREIGN KEY(category_id) REFERENCES Categories(id));");
+
+    themeButton = new QPushButton(translate("Темная тема"), this);
+    connect(themeButton, &QPushButton::clicked, this, &MainWindow::toggleTheme);
 
     loadWorkspaces();
     loadCategories();
@@ -142,15 +144,20 @@ QString MainWindow::translate(const QString& text) const {
         {"Задача удалена", "Task deleted"},
 
         // Поиск задача по тегам
-        {"Search by Tags", "Поиск по тегам"},
-        {"Search Tasks by Tags", "Поиск задач по тегам"},
-        {"Enter tags (comma separated):", "Введите теги (через запятую):"},
-        {"Search Results", "Результаты поиска"},
-        {"No tasks found with these tags", "Задачи с указанными тегами не найдены"},
-        {"Tasks found in:", "Задачи найдены в:"},
-        {"Workspace", "Рабочее пространство"},
-        {"Category", "Категория"},
-        {"Close", "Закрыть"}
+        {"Поиск по тегам", "Search by Tags"},
+        {"Поиск задач по тегам", "Search Tasks by Tags"},
+        {"Введите теги (через запятую):", "Enter tags (comma separated):"},
+        {"Результаты поиска", "Search Results"},
+        {"Задачи с указанными тегами не найдены", "No tasks found with these tags"},
+        {"Задачи найдены в:", "Tasks found in:"},
+        {"Рабочее пространство", "Workspace"},
+        {"Категория", "Category"},
+        {"Закрыть", "Close"},
+
+        // Кнопки смены темы
+        {"Темная тема", "Dark Theme"},
+        {"Светлая тема", "Light Theme"}
+
     };
 
     return isEnglish ? translations.value(text, text) : text;
@@ -190,7 +197,7 @@ void MainWindow::setupUI()
     workspaceView = new QWidget(this);
     workspaceLayout = new QVBoxLayout(workspaceView);
 
-    currentWorkspaceLabel = new QLabel(translate("Select a workspace"), this);
+    currentWorkspaceLabel = new QLabel(translate("Выберите рабочее пространство"), this);
     currentWorkspaceLabel->setAlignment(Qt::AlignCenter);
 
     addCategoryButton = new QPushButton(translate("Add Category"), this);
@@ -223,8 +230,11 @@ void MainWindow::setupUI()
     languageButton = new QPushButton(translate("English"), this);
     connect(languageButton, &QPushButton::clicked, this, &MainWindow::toggleLanguage);
 
-    searchByTagsButton = new QPushButton(translate("Search by Tags"), this);
+    searchByTagsButton = new QPushButton(translate("Поиск по тегам"), this);
     connect(searchByTagsButton, &QPushButton::clicked, this, &MainWindow::searchTasksByTags);
+
+    rightSidebarLayout->addWidget(themeButton);
+    applyTheme(false);
 
     rightSidebarLayout->addWidget(historyButton);
     rightSidebarLayout->addWidget(notificationsButton);
@@ -481,7 +491,6 @@ void MainWindow::showCategories(const QString& workspaceName) {
 void MainWindow::toggleSidebar()
 {
     if (sidebar->width() > 50) {
-
         sidebar->setFixedWidth(0);
         toggleSidebarButton->setText(">");
         toggleSidebarButton->setParent(this);
@@ -491,7 +500,6 @@ void MainWindow::toggleSidebar()
         toggleSidebarButton->raise();
         toggleSidebarButton->show();
     } else {
-
         sidebar->setFixedWidth(250);
         toggleSidebarButton->setText("<");
         toggleSidebarButton->setParent(sidebarContent);
@@ -565,6 +573,7 @@ void MainWindow::workspaceSelected()
     if (!button) return;
 
     QString workspaceName = button->text();
+
     workspaceName.replace(translate("Workspace: "), "");
     workspaceName.replace(translate("Рабочее пространство: "), "");
 
@@ -1138,12 +1147,12 @@ void MainWindow::updateUI() {
     historyButton->setText(translate("История"));
     notificationsButton->setText(translate("Уведомления"));
     languageButton->setText(isEnglish ? translate("Русский") : translate("English"));
-    searchByTagsButton->setText(translate("Search by Tags"));
+    searchByTagsButton->setText(translate("Поиск по тегам"));
 
     QString currentText = currentWorkspaceLabel->text();
     if (currentText != translate("Выберите рабочее пространство")) {
         QString cleanName = currentText;
-        cleanName.replace(translate("Рабочее пространство: "), "").replace(translate("Workspace: "), "");
+        cleanName.replace(translate("Рабочее пространство: "), "").replace(translate("Рабочее пространство: "), "");
         currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(cleanName));
     }
 
@@ -1151,7 +1160,7 @@ void MainWindow::updateUI() {
     if (!currentWorkspaceLabel->text().isEmpty() &&
         currentWorkspaceLabel->text() != translate("Выберите рабочее пространство")) {
         QString cleanName = currentWorkspaceLabel->text();
-        cleanName.replace(translate("Рабочее пространство: "), "").replace(translate("Workspace: "), "");
+        cleanName.replace(translate("Рабочее пространство: "), "").replace(translate("Рабочее пространство: "), "");
         showCategories(cleanName);
     }
 
@@ -1179,8 +1188,10 @@ void MainWindow::retranslateUi() {
     historyButton->setText(translate("История"));
     notificationsButton->setText(translate("Уведомления"));
     languageButton->setText(isEnglish ? "Русский" : "English");
+    searchByTagsButton->setText(translate("Поиск по тегам"));
 
-    searchByTagsButton->setText(translate("Search by Tags"));
+    themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
+
     QString currentText = currentWorkspaceLabel->text();
     if (currentText != translate("Выберите рабочее пространство")) {
         QString cleanName = currentText;
@@ -1283,4 +1294,344 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
     }
 
     return results;
+}
+
+void MainWindow::toggleTheme()
+{
+    isDarkTheme = !isDarkTheme;
+    applyTheme(isDarkTheme);
+    themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
+}
+
+void MainWindow::applyTheme(bool dark)
+{
+    if (dark) {
+        currentThemeStyle = R"(
+            /* Dark Theme */
+            QWidget {
+                background-color: #2d2d2d;
+                color: #e0e0e0;
+                border: none;
+            }
+
+            QMainWindow, QDialog {
+                background-color: #2d2d2d;
+            }
+
+            QPushButton {
+                background-color: #3a3a3a;
+                color: #e0e0e0;
+                border: 1px solid #555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+
+            QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+
+            QPushButton:pressed {
+                background-color: #2a2a2a;
+            }
+
+            QLabel {
+                color: #e0e0e0;
+            }
+
+            QScrollArea {
+                background-color: #2d2d2d;
+                border: none;
+            }
+
+            QGroupBox {
+                background-color: #353535;
+                color: #e0e0e0;
+                border: 1px solid #444;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+
+            QTableWidget {
+                background-color: #353535;
+                color: #e0e0e0;
+                gridline-color: #444;
+            }
+
+            QHeaderView::section {
+                background-color: #3a3a3a;
+                color: #e0e0e0;
+                padding: 5px;
+                border: 1px solid #444;
+            }
+
+            QTableWidget::item {
+                padding: 5px;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #505050;
+                color: #ffffff;
+            }
+
+            QLineEdit, QComboBox, QDateEdit {
+                background-color: #3a3a3a;
+                color: #e0e0e0;
+                border: 1px solid #555;
+                padding: 3px;
+            }
+
+            QComboBox QAbstractItemView {
+                background-color: #3a3a3a;
+                color: #e0e0e0;
+            }
+
+            QListWidget {
+                background-color: #353535;
+                color: #e0e0e0;
+                border: 1px solid #444;
+            }
+
+            QListWidget::item:selected {
+                background-color: #505050;
+            }
+
+            QMenuBar {
+                background-color: #353535;
+                color: #e0e0e0;
+            }
+
+            QMenuBar::item:selected {
+                background-color: #505050;
+            }
+
+            QMenu {
+                background-color: #353535;
+                color: #e0e0e0;
+                border: 1px solid #444;
+            }
+
+            QMenu::item:selected {
+                background-color: #505050;
+            }
+
+            QMessageBox {
+                background-color: #353535;
+            }
+
+            QInputDialog {
+                background-color: #353535;
+            }
+
+            QTabWidget::pane {
+                border: 1px solid #444;
+                background: #353535;
+            }
+
+            QTabBar::tab {
+                background: #3a3a3a;
+                color: #e0e0e0;
+                padding: 5px;
+                border: 1px solid #444;
+                border-bottom: none;
+                border-top-left-radius: 3px;
+                border-top-right-radius: 3px;
+            }
+
+            QTabBar::tab:selected {
+                background: #505050;
+                border-bottom-color: #505050;
+            }
+
+            QScrollBar:vertical {
+                background: #3a3a3a;
+                width: 12px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #555;
+                min-height: 20px;
+            }
+
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                background: none;
+            }
+
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        )";
+    } else {
+        currentThemeStyle = R"(
+            /* Light Theme */
+            QWidget {
+                background-color: #f0f0f0;
+                color: #333333;
+                border: none;
+            }
+
+            QMainWindow, QDialog {
+                background-color: #f0f0f0;
+            }
+
+            QPushButton {
+                background-color: #e0e0e0;
+                color: #333333;
+                border: 1px solid #aaa;
+                padding: 5px;
+                border-radius: 3px;
+            }
+
+            QPushButton:hover {
+                background-color: #d0d0d0;
+            }
+
+            QPushButton:pressed {
+                background-color: #c0c0c0;
+            }
+
+            QLabel {
+                color: #333333;
+            }
+
+            QScrollArea {
+                background-color: #f0f0f0;
+                border: none;
+            }
+
+            QGroupBox {
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 3px;
+            }
+
+            QTableWidget {
+                background-color: #ffffff;
+                color: #333333;
+                gridline-color: #ddd;
+            }
+
+            QHeaderView::section {
+                background-color: #e0e0e0;
+                color: #333333;
+                padding: 5px;
+                border: 1px solid #ccc;
+            }
+
+            QTableWidget::item {
+                padding: 5px;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #0078d7;
+                color: #ffffff;
+            }
+
+            QLineEdit, QComboBox, QDateEdit {
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #aaa;
+                padding: 3px;
+            }
+
+            QComboBox QAbstractItemView {
+                background-color: #ffffff;
+                color: #333333;
+            }
+
+            QListWidget {
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #ccc;
+            }
+
+            QListWidget::item:selected {
+                background-color: #0078d7;
+                color: #ffffff;
+            }
+
+            QMenuBar {
+                background-color: #f0f0f0;
+                color: #333333;
+            }
+
+            QMenuBar::item:selected {
+                background-color: #e0e0e0;
+            }
+
+            QMenu {
+                background-color: #ffffff;
+                color: #333333;
+                border: 1px solid #ccc;
+            }
+
+            QMenu::item:selected {
+                background-color: #0078d7;
+                color: #ffffff;
+            }
+
+            QMessageBox {
+                background-color: #ffffff;
+            }
+
+            QInputDialog {
+                background-color: #ffffff;
+            }
+
+            QTabWidget::pane {
+                border: 1px solid #ccc;
+                background: #ffffff;
+            }
+
+            QTabBar::tab {
+                background: #e0e0e0;
+                color: #333333;
+                padding: 5px;
+                border: 1px solid #ccc;
+                border-bottom: none;
+                border-top-left-radius: 3px;
+                border-top-right-radius: 3px;
+            }
+
+            QTabBar::tab:selected {
+                background: #ffffff;
+                border-bottom-color: #ffffff;
+            }
+
+            QScrollBar:vertical {
+                background: #f0f0f0;
+                width: 12px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #c0c0c0;
+                min-height: 20px;
+            }
+
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                background: none;
+            }
+
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        )";
+    }
+
+    this->setStyleSheet(currentThemeStyle);
+
+    QString iconColor = dark ? "white" : "black";
 }
