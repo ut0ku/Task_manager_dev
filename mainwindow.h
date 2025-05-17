@@ -122,9 +122,10 @@ public:
     Workspace(int id, const QString& name) : id(id), name(name) {}
 
     int getId() const { return id; }
-    void addCategory(const QString& categoryName) {
-        categories[categoryName] = new Category(categories.size() + 1, categoryName);
+    void addCategory(int id, const QString& categoryName) {
+        categories[categoryName] = new Category(id, categoryName);
     }
+
     QMap<QString, Category*>& getCategories() { return categories; }
     QString getName() const { return name; }
 
@@ -226,6 +227,7 @@ private:
     QVBoxLayout *categoriesLayout;
     QVector<QPair<QString, QString>> findTasksByTags(const QStringList& tags);
     QPushButton *themeButton;
+
 };
 
 #endif // MAINWINDOW_H

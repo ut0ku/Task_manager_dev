@@ -29,11 +29,6 @@ set_target_properties(Task_Manager_dev PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
-qt_add_translations(Task_Manager_dev
-    TS_FILES untitled19_en_US.ts
-    QM_FILES_OUTPUT_VARIABLE translation_qm_files
-)
-
 target_link_libraries(Task_Manager_dev PRIVATE
     Qt6::Core
     Qt6::Widgets

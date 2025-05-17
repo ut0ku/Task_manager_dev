@@ -163,6 +163,7 @@ QString MainWindow::translate(const QString& text) const {
     return isEnglish ? translations.value(text, text) : text;
 }
 
+
 void MainWindow::setupUI()
 {
     mainWidget = new QWidget(this);
@@ -275,7 +276,8 @@ void MainWindow::loadCategories()
 
         for (auto it = workspaces.begin(); it != workspaces.end(); ++it) {
             if (it.value()->getId() == workspaceId) {
-                it.value()->addCategory(name);
+                // fix
+                it.value()->addCategory(id, name);
                 break;
             }
         }
@@ -295,16 +297,23 @@ void MainWindow::loadTasks()
         QString deadline = query.value(6).toString();
 
         QStringList tags;
-        QSqlQuery tagQuery("SELECT tag FROM TaskTags WHERE task_id = " + QString::number(id) + ";");
-        while (tagQuery.next()) {
-            tags.append(tagQuery.value(0).toString());
+        QSqlQuery tagQuery;
+        tagQuery.prepare("SELECT tag FROM TaskTags WHERE task_id = :task_id");
+        tagQuery.bindValue(":task_id", id);
+        if (tagQuery.exec()) {
+            while (tagQuery.next()) {
+                tags.append(tagQuery.value(0).toString());
+            }
+        } else {
+            qDebug() << "Ошибка загрузки тегов:" << tagQuery.lastError().text();
         }
 
         for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
             QMap<QString, Category*>& categories = workspaceIt.value()->getCategories();
             for (auto categoryIt = categories.begin(); categoryIt != categories.end(); ++categoryIt) {
                 if (categoryIt.value()->getId() == categoryId) {
-                    Task* task = new Task(id, description, categoryIt.value()->getName(), tags, difficulty, priority, status, deadline);
+                    Task* task = new Task(id, description, categoryIt.value()->getName(), tags,
+                                          difficulty, priority, status, deadline);
                     categoryIt.value()->addTask(task);
                     break;
                 }
@@ -573,7 +582,6 @@ void MainWindow::workspaceSelected()
     if (!button) return;
 
     QString workspaceName = button->text();
-
     workspaceName.replace(translate("Workspace: "), "");
     workspaceName.replace(translate("Рабочее пространство: "), "");
 
@@ -595,7 +603,10 @@ void MainWindow::addCategory()
                       QString::number(workspaces[workspaceName]->getId()) + ");";
         executeSQL(sql);
 
-        workspaces[workspaceName]->addCategory(categoryName);
+        int categoryId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
+
+        // fix
+        workspaces[workspaceName]->addCategory(categoryId, categoryName);
         showCategories(workspaceName);
     }
 }
@@ -1182,6 +1193,7 @@ void MainWindow::updateUI() {
 }
 
 void MainWindow::retranslateUi() {
+
     setWindowTitle(translate("Менеджер задач"));
     addWorkspaceButton->setText(translate("Добавить рабочее пространство"));
     addCategoryButton->setText(translate("Добавить категорию"));
@@ -1211,7 +1223,7 @@ void MainWindow::retranslateUi() {
 void MainWindow::searchTasksByTags() {
     bool ok;
     QString tagsInput = QInputDialog::getText(this, translate("Search Tasks by Tags"),
-                                              translate("Enter tags (comma separated):"),
+                                              translate("Введите теги (через запятую)::"),
                                               QLineEdit::Normal, "", &ok);
     if (!ok || tagsInput.isEmpty()) return;
 
@@ -1276,21 +1288,43 @@ bool MainWindow::compareStringsIgnoreCase(const QString& a, const QString& b) co
 
 QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& tags) {
     QVector<QPair<QString, QString>> results;
-
-    if (tags.isEmpty()) return results;
+    qDebug() << "Начинаем поиск по тегам:" << tags;
 
     for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
-        QMap<QString, Category*>& categories = workspaceIt.value()->getCategories();
-        for (auto categoryIt = categories.begin(); categoryIt != categories.end(); ++categoryIt) {
+        for (auto categoryIt = workspaceIt.value()->getCategories().begin();
+             categoryIt != workspaceIt.value()->getCategories().end(); ++categoryIt) {
+
             for (Task* task : categoryIt.value()->getTasks()) {
+                qDebug() << "Проверяем задачу:" << task->getDescription()
+                    << "с тегами:" << task->getTags();
+
                 for (const QString& taskTag : task->getTags()) {
-                    if (tags.contains(taskTag, Qt::CaseInsensitive)) {
-                        results.append(qMakePair(workspaceIt.key(), categoryIt.key()));
-                        break;
+                    for (const QString& searchTag : tags) {
+                        if (taskTag.trimmed().compare(searchTag.trimmed(), Qt::CaseInsensitive) == 0) {
+                            results.append(qMakePair(workspaceIt.key(), categoryIt.key()));
+                            qDebug() << "Найдено совпадение! Тег:" << taskTag;
+                            goto next_task;
+                        }
+                    }
+                }
+            next_task:;
+            }
+        }
+    }
+
+    if (results.isEmpty()) {
+        qDebug() << "Теги не найдены. Доступные теги в системе:";
+        QSet<QString> allTags;
+        for (const auto& workspace : workspaces) {
+            for (const auto& category : workspace->getCategories()) {
+                for (const Task* task : category->getTasks()) {
+                    for (const QString& tag : task->getTags()) {
+                        allTags.insert(tag.toLower());
                     }
                 }
             }
         }
+        qDebug() << "Все существующие теги:" << allTags.values();
     }
 
     return results;
