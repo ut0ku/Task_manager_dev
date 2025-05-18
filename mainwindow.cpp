@@ -276,7 +276,6 @@ void MainWindow::loadCategories()
 
         for (auto it = workspaces.begin(); it != workspaces.end(); ++it) {
             if (it.value()->getId() == workspaceId) {
-                // fix
                 it.value()->addCategory(id, name);
                 break;
             }
@@ -404,6 +403,8 @@ void MainWindow::showCategories(const QString& workspaceName) {
         QGroupBox *group = new QGroupBox(it.key(), categoriesContent);
         QVBoxLayout *layout = new QVBoxLayout(group);
 
+        group->setMinimumHeight(350);
+
         QPushButton *addTaskBtn = new QPushButton(translate("Создать задачу"), group);
         addTaskBtn->setProperty("workspaceName", workspaceName);
         addTaskBtn->setProperty("categoryName", it.key());
@@ -415,15 +416,49 @@ void MainWindow::showCategories(const QString& workspaceName) {
         connect(deleteBtn, &QPushButton::clicked, this, &MainWindow::removeCategory);
 
         QTableWidget *table = new QTableWidget(0, 6, group);
+        table->installEventFilter(this);
+        table->viewport()->installEventFilter(this);
+        table->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        table->verticalScrollBar()->setSingleStep(15);
+        table->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);  // Плавный скролл
+        table->horizontalScrollBar()->setSingleStep(20);  // Шаг скролла (меньше = плавнее)
         table->setHorizontalHeaderLabels({
             translate("Задача"), translate("Срок"), translate("Статус"),
             translate("Приоритет"), translate("Сложность"), translate("Действия")
         });
 
+        table->setColumnWidth(0, 80);  // ~190
+        table->setColumnWidth(1, 90);   // ~90
+        table->setColumnWidth(2, 90);   // ~100
+        table->setColumnWidth(3, 85);   // ~100
+        table->setColumnWidth(4, 85);   // ~100
+        table->setColumnWidth(5, 90);
+
+        table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Fixed);
+
+        for (int i = 0; i < 5; ++i) {
+            table->horizontalHeader()->setSectionResizeMode(i, QHeaderView::Interactive);
+        }
+
+        table->horizontalHeader()->setStretchLastSection(false);
+
+        table->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        table->verticalHeader()->setDefaultSectionSize(30);
+        table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+        table->horizontalHeader()->setStretchLastSection(true);
+        table->setSelectionBehavior(QAbstractItemView::SelectRows);
+        table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        table->setTextElideMode(Qt::ElideRight);
+
         int row = 0;
         for (Task *task : it.value()->getTasks()) {
             table->insertRow(row);
-            table->setItem(row, 0, new QTableWidgetItem(task->getDescription()));
+
+            QTableWidgetItem *descriptionItem = new QTableWidgetItem(task->getDescription());
+            descriptionItem->setToolTip(task->getDescription());
+            descriptionItem->setFlags(descriptionItem->flags() ^ Qt::ItemIsEditable);
+            table->setItem(row, 0, descriptionItem);
+
             table->setItem(row, 1, new QTableWidgetItem(task->getDeadline()));
 
             QString status = task->getStatus();
@@ -439,6 +474,8 @@ void MainWindow::showCategories(const QString& workspaceName) {
 
             QWidget *actions = new QWidget(table);
             QHBoxLayout *actionsLayout = new QHBoxLayout(actions);
+            actionsLayout->setContentsMargins(0, 0, 0, 0);
+            actionsLayout->setSpacing(5);
 
             QPushButton *pendingBtn = new QPushButton(actions);
             pendingBtn->setIcon(QIcon(":/icons/pending.png"));
@@ -485,16 +522,20 @@ void MainWindow::showCategories(const QString& workspaceName) {
             actionsLayout->addWidget(progressBtn);
             actionsLayout->addWidget(completeBtn);
             actionsLayout->addWidget(deleteBtn);
-            actionsLayout->setContentsMargins(0, 0, 0, 0);
             table->setCellWidget(row, 5, actions);
+
             row++;
         }
 
         layout->addWidget(addTaskBtn);
         layout->addWidget(deleteBtn);
         layout->addWidget(table);
+        layout->addStretch();
+
         categoriesLayout->addWidget(group);
     }
+
+    categoriesLayout->addStretch();
 }
 
 void MainWindow::toggleSidebar()
@@ -605,7 +646,6 @@ void MainWindow::addCategory()
 
         int categoryId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
 
-        // fix
         workspaces[workspaceName]->addCategory(categoryId, categoryName);
         showCategories(workspaceName);
     }
@@ -667,6 +707,7 @@ void MainWindow::addTask()
 
     QDialog dialog(this);
     dialog.setWindowTitle(translate("Создать задачу"));
+    dialog.resize(350, 250);
 
     QFormLayout form(&dialog);
 
@@ -674,10 +715,19 @@ void MainWindow::addTask()
     QLineEdit *tagsEdit = new QLineEdit(&dialog);
 
     QComboBox *difficultyCombo = new QComboBox(&dialog);
-    difficultyCombo->addItems(QStringList() << translate("Лёгкая") << translate("Средняя") << translate("Сложная"));
+    difficultyCombo->addItems(QStringList()
+                              << translate("Лёгкая")
+                              << translate("Средняя")
+                              << translate("Сложная"));
 
     QComboBox *priorityCombo = new QComboBox(&dialog);
-    priorityCombo->addItems(QStringList() << translate("Низкий") << translate("Средний") << translate("Высокий"));
+    priorityCombo->addItems(QStringList()
+                            << translate("Низкий")
+                            << translate("Средний")
+                            << translate("Высокий"));
+
+    difficultyCombo->setMinimumWidth(150);
+    priorityCombo->setMinimumWidth(150);
 
     QDateEdit *deadlineEdit = new QDateEdit(&dialog);
     deadlineEdit->setDisplayFormat("dd-MM-yyyy");
@@ -1038,6 +1088,7 @@ void MainWindow::showNotifications() {
 
     QDialog notificationsDialog(this);
     notificationsDialog.setWindowTitle(translate("Уведомления"));
+    notificationsDialog.resize(500, 300);
 
     QVBoxLayout layout(&notificationsDialog);
 
@@ -1053,6 +1104,27 @@ void MainWindow::showNotifications() {
         layout.addWidget(noNotificationsLabel);
     } else {
         QListWidget *notificationsList = new QListWidget(&notificationsDialog);
+
+        // Плавный скролл
+        notificationsList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        notificationsList->verticalScrollBar()->setSingleStep(5);  // Шаг скролла (меньше = плавнее)
+        notificationsList->setStyleSheet(
+            "QScrollBar:vertical {"
+            "    border: none;"
+            "    background: #f0f0f0;"
+            "    width: 10px;"
+            "    margin: 0px 0px 0px 0px;"
+            "}"
+            "QScrollBar::handle:vertical {"
+            "    background: #c0c0c0;"
+            "    min-height: 20px;"
+            "    border-radius: 5px;"
+            "}"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
+            "    height: 0px;"
+            "}"
+            );
+
         for (const Notification &notification : unviewedNotifications) {
             notificationsList->addItem(notification.getMessage());
         }
@@ -1284,6 +1356,55 @@ QString MainWindow::toLowerCase(const QString& str) const
 bool MainWindow::compareStringsIgnoreCase(const QString& a, const QString& b) const
 {
     return a.compare(b, Qt::CaseInsensitive) == 0;
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::Wheel) {
+        QWidget *widget = qobject_cast<QWidget*>(obj);
+        if (widget) {
+            QTableWidget *table = nullptr;
+            if (widget->inherits("QTableWidget")) {
+                table = qobject_cast<QTableWidget*>(widget);
+            } else if (widget->parent() && widget->parent()->inherits("QTableWidget")) {
+                table = qobject_cast<QTableWidget*>(widget->parent());
+            }
+
+            if (table) {
+                QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+                QScrollBar *hScroll = table->horizontalScrollBar();
+                QScrollBar *vScroll = table->verticalScrollBar();
+
+                // Проверка границ гор скролла
+                bool atLeft = (hScroll->value() == hScroll->minimum());
+                bool atRight = (hScroll->value() == hScroll->maximum());
+
+                // Проверка границ верт скролла
+                bool atTop = (vScroll->value() == vScroll->minimum());
+                bool atBottom = (vScroll->value() == vScroll->maximum());
+
+                // Если скролл гор
+                if (abs(wheelEvent->angleDelta().x()) > abs(wheelEvent->angleDelta().y())) {
+                    if (atLeft && wheelEvent->angleDelta().x() > 0) {
+                        return true;
+                    }
+                    if (atRight && wheelEvent->angleDelta().x() < 0) {
+                        return true;
+                    }
+                    return false;
+                }
+                // Если скролл верт
+                else {
+                    if (atTop && wheelEvent->angleDelta().y() > 0) {
+                        return true;
+                    }
+                    if (atBottom && wheelEvent->angleDelta().y() < 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& tags) {

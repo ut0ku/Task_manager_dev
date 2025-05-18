@@ -26,6 +26,8 @@
 #include <QApplication>
 #include <QPropertyAnimation>
 #include <QParallelAnimationGroup>
+#include <QScrollBar>
+#include <QWheelEvent>
 
 class Notification {
 public:
@@ -199,6 +201,7 @@ private:
     bool isDarkTheme;
     void applyTheme(bool dark);
     QString currentThemeStyle;
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
     QSqlDatabase db;
     QVector<Notification> notifications;
