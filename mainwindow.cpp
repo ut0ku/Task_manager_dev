@@ -142,6 +142,11 @@ QString MainWindow::translate(const QString& text) const {
         {"Задача не найдена в истории", "Task not found in history"},
         {"Задача восстановлена", "Task restored"},
         {"Задача удалена", "Task deleted"},
+        {"Введите описание задачи для удаления:", "Enter task description to delete:"},
+        {"Рабочее пространство не найдено", "Workspace not found"},
+        {"Категория не найдена в рабочем пространстве","Category not found in workspace"},
+        {"Была удалена навсегда", "has been permanently deleted"},
+        {"Задача \"%1\" была восстановлена","Task \"%1\" has been restored"},
 
         // Поиск задача по тегам
         {"Поиск по тегам", "Search by Tags"},
@@ -250,9 +255,8 @@ void MainWindow::setupUI()
     mainLayout->addLayout(contentLayout);
     setCentralWidget(mainWidget);
 
-    resize(1000, 600);
+    resize(1050, 650);
     setWindowTitle(translate("Task Manager"));
-
 
 }
 
@@ -420,35 +424,27 @@ void MainWindow::showCategories(const QString& workspaceName) {
         table->viewport()->installEventFilter(this);
         table->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
         table->verticalScrollBar()->setSingleStep(15);
-        table->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);  // Плавный скролл
-        table->horizontalScrollBar()->setSingleStep(20);  // Шаг скролла (меньше = плавнее)
+        table->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+        table->horizontalScrollBar()->setSingleStep(20);
         table->setHorizontalHeaderLabels({
             translate("Задача"), translate("Срок"), translate("Статус"),
             translate("Приоритет"), translate("Сложность"), translate("Действия")
         });
 
-        table->setColumnWidth(0, 80);  // ~190
-        table->setColumnWidth(1, 90);   // ~90
-        table->setColumnWidth(2, 90);   // ~100
-        table->setColumnWidth(3, 85);   // ~100
-        table->setColumnWidth(4, 85);   // ~100
-        table->setColumnWidth(5, 90);
-
-        table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Fixed);
-
-        for (int i = 0; i < 5; ++i) {
-            table->horizontalHeader()->setSectionResizeMode(i, QHeaderView::Interactive);
-        }
+        table->setColumnWidth(0, 150);
+        table->setColumnWidth(1, 90);
+        table->setColumnWidth(2, 90);
+        table->setColumnWidth(3, 90);
+        table->setColumnWidth(4, 90);
+        table->setColumnWidth(5, 120);
 
         table->horizontalHeader()->setStretchLastSection(false);
-
-        table->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        table->verticalHeader()->setDefaultSectionSize(30);
-        table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
-        table->horizontalHeader()->setStretchLastSection(true);
-        table->setSelectionBehavior(QAbstractItemView::SelectRows);
-        table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        table->setTextElideMode(Qt::ElideRight);
+        table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+        table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
+        table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
+        table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Fixed);
+        table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Fixed);
 
         int row = 0;
         for (Task *task : it.value()->getTasks()) {
@@ -828,7 +824,7 @@ void MainWindow::removeTask()
 
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, translate("Delete Task"),
-                                  translate("Are you sure you want to delete task \"%1\"?").arg(taskDescription),
+                                  translate("Вы уверены, что хотите удалить задачу \"%1\"?").arg(taskDescription),
                                   QMessageBox::Yes|QMessageBox::No);
     if (reply != QMessageBox::Yes) return;
 
@@ -989,31 +985,31 @@ void MainWindow::showHistory()
 void MainWindow::restoreTaskFromHistory()
 {
     bool ok;
-    QString taskDescription = QInputDialog::getText(this, translate("Restore Task"),
-                                                    translate("Enter task description to restore:"),
+    QString taskDescription = QInputDialog::getText(this, translate("Восстановить задачу"),
+                                                    translate("Введите описание задачи для восстановления:"),
                                                     QLineEdit::Normal, "", &ok);
     if (!ok || taskDescription.isEmpty()) return;
 
-    QString workspaceName = QInputDialog::getText(this, translate("Restore Task"),
-                                                  translate("Enter workspace name:"),
+    QString workspaceName = QInputDialog::getText(this, translate("Восстановить задачу"),
+                                                  translate("Введите имя рабочего пространства:"),
                                                   QLineEdit::Normal, "", &ok);
     if (!ok || workspaceName.isEmpty()) return;
 
-    QString categoryName = QInputDialog::getText(this, translate("Restore Task"),
-                                                 translate("Enter category name:"),
+    QString categoryName = QInputDialog::getText(this, translate("Восстановить задачу"),
+                                                 translate("Введите имя категории:"),
                                                  QLineEdit::Normal, "", &ok);
     if (!ok || categoryName.isEmpty()) return;
 
     for (auto it = taskHistory.begin(); it != taskHistory.end(); ++it) {
         if (compareStringsIgnoreCase(it->getDescription(), taskDescription)) {
             if (!workspaces.contains(workspaceName)) {
-                QMessageBox::warning(this, translate("Error"), translate("Workspace not found"));
+                QMessageBox::warning(this, translate("Error"), translate("Рабочее пространство не найдено"));
                 return;
             }
 
             Workspace *workspace = workspaces[workspaceName];
             if (!workspace->getCategories().contains(categoryName)) {
-                QMessageBox::warning(this, translate("Error"), translate("Category not found in workspace"));
+                QMessageBox::warning(this, translate("Error"), translate("Категория не найдена в рабочем пространстве"));
                 return;
             }
 
@@ -1046,21 +1042,21 @@ void MainWindow::restoreTaskFromHistory()
 
             taskHistory.erase(it);
 
-            QMessageBox::information(this, translate("Task Restored"),
-                                     translate("Task \"%1\" has been restored").arg(taskDescription));
+            QMessageBox::information(this, translate("Задача восстановлена"),
+                                     translate("Задача \"%1\" была восстановлена").arg(taskDescription));
             showCategories(workspaceName);
             return;
         }
     }
 
-    QMessageBox::warning(this, translate("Error"), translate("Task not found in history"));
+    QMessageBox::warning(this, translate("Error"), translate("Задача не найдена в истории"));
 }
 
 void MainWindow::deleteTaskFromHistory()
 {
     bool ok;
-    QString taskDescription = QInputDialog::getText(this, translate("Delete Task"),
-                                                    translate("Enter task description to delete:"),
+    QString taskDescription = QInputDialog::getText(this, translate("Удалить задачу"),
+                                                    translate("Введите описание задачи для удаления:"),
                                                     QLineEdit::Normal, "", &ok);
     if (!ok || taskDescription.isEmpty()) return;
 
@@ -1074,13 +1070,13 @@ void MainWindow::deleteTaskFromHistory()
 
             taskHistory.erase(it);
 
-            QMessageBox::information(this, translate("Task Deleted"),
-                                     translate("Task \"%1\" has been permanently deleted").arg(taskDescription));
+            QMessageBox::information(this, translate("Задача удалена"),
+                                     translate("Task \"%1\" Была удалена навсегда").arg(taskDescription));
             return;
         }
     }
 
-    QMessageBox::warning(this, translate("Error"), translate("Task not found in history"));
+    QMessageBox::warning(this, translate("Error"), translate("Задача не найдена в истории"));
 }
 
 void MainWindow::showNotifications() {
@@ -1088,7 +1084,7 @@ void MainWindow::showNotifications() {
 
     QDialog notificationsDialog(this);
     notificationsDialog.setWindowTitle(translate("Уведомления"));
-    notificationsDialog.resize(500, 300);
+    notificationsDialog.resize(500, 300);  // Увеличенный размер
 
     QVBoxLayout layout(&notificationsDialog);
 
@@ -1105,9 +1101,8 @@ void MainWindow::showNotifications() {
     } else {
         QListWidget *notificationsList = new QListWidget(&notificationsDialog);
 
-        // Плавный скролл
         notificationsList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-        notificationsList->verticalScrollBar()->setSingleStep(5);  // Шаг скролла (меньше = плавнее)
+        notificationsList->verticalScrollBar()->setSingleStep(5);
         notificationsList->setStyleSheet(
             "QScrollBar:vertical {"
             "    border: none;"
@@ -1265,7 +1260,6 @@ void MainWindow::updateUI() {
 }
 
 void MainWindow::retranslateUi() {
-
     setWindowTitle(translate("Менеджер задач"));
     addWorkspaceButton->setText(translate("Добавить рабочее пространство"));
     addCategoryButton->setText(translate("Добавить категорию"));
@@ -1294,8 +1288,8 @@ void MainWindow::retranslateUi() {
 
 void MainWindow::searchTasksByTags() {
     bool ok;
-    QString tagsInput = QInputDialog::getText(this, translate("Search Tasks by Tags"),
-                                              translate("Введите теги (через запятую)::"),
+    QString tagsInput = QInputDialog::getText(this, translate("Поиск задач по тегам"),
+                                              translate("Введите теги (через запятую):"),
                                               QLineEdit::Normal, "", &ok);
     if (!ok || tagsInput.isEmpty()) return;
 
@@ -1307,20 +1301,20 @@ void MainWindow::searchTasksByTags() {
     QVector<QPair<QString, QString>> results = findTasksByTags(tags);
 
     QDialog resultsDialog(this);
-    resultsDialog.setWindowTitle(translate("Search Results"));
+    resultsDialog.setWindowTitle(translate("Результаты поиска"));
     resultsDialog.resize(400, 300);
 
     QVBoxLayout layout(&resultsDialog);
 
     if (results.isEmpty()) {
-        QLabel* noResultsLabel = new QLabel(translate("No tasks found with these tags"), &resultsDialog);
+        QLabel* noResultsLabel = new QLabel(translate("Задачи с указанными тегами не найдены"), &resultsDialog);
         layout.addWidget(noResultsLabel);
     } else {
-        QLabel* resultsLabel = new QLabel(translate("Tasks found in:"), &resultsDialog);
+        QLabel* resultsLabel = new QLabel(translate("Задачи найдены в:"), &resultsDialog);
         layout.addWidget(resultsLabel);
 
         QTableWidget* resultsTable = new QTableWidget(0, 2, &resultsDialog);
-        resultsTable->setHorizontalHeaderLabels({translate("Workspace"), translate("Category")});
+        resultsTable->setHorizontalHeaderLabels({translate("Рабочее пространство"), translate("Категория")});
         resultsTable->horizontalHeader()->setStretchLastSection(true);
         resultsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
@@ -1340,7 +1334,7 @@ void MainWindow::searchTasksByTags() {
         layout.addWidget(resultsTable);
     }
 
-    QPushButton* closeButton = new QPushButton(translate("Close"), &resultsDialog);
+    QPushButton* closeButton = new QPushButton(translate("Закрыть"), &resultsDialog);
     layout.addWidget(closeButton);
 
     connect(closeButton, &QPushButton::clicked, &resultsDialog, &QDialog::accept);
@@ -1374,29 +1368,29 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
                 QScrollBar *hScroll = table->horizontalScrollBar();
                 QScrollBar *vScroll = table->verticalScrollBar();
 
-                // Проверка границ гор скролла
                 bool atLeft = (hScroll->value() == hScroll->minimum());
                 bool atRight = (hScroll->value() == hScroll->maximum());
 
-                // Проверка границ верт скролла
                 bool atTop = (vScroll->value() == vScroll->minimum());
                 bool atBottom = (vScroll->value() == vScroll->maximum());
 
-                // Если скролл гор
                 if (abs(wheelEvent->angleDelta().x()) > abs(wheelEvent->angleDelta().y())) {
                     if (atLeft && wheelEvent->angleDelta().x() > 0) {
                         return true;
                     }
+
                     if (atRight && wheelEvent->angleDelta().x() < 0) {
                         return true;
                     }
+
                     return false;
                 }
-                // Если скролл верт
+
                 else {
                     if (atTop && wheelEvent->angleDelta().y() > 0) {
                         return true;
                     }
+
                     if (atBottom && wheelEvent->angleDelta().y() < 0) {
                         return true;
                     }
