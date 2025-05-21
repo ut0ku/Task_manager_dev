@@ -266,6 +266,14 @@ void MainWindow::loadWorkspaces()
     while (query.next()) {
         int id = query.value(0).toInt();
         QString name = query.value(1).toString();
+
+        qDebug() << "Loading workspace - ID:" << id << "Name:" << name;
+
+        if (id == 0) {
+            qDebug() << "Warning: Workspace with ID 0 found! This should not happen.";
+            continue;
+        }
+
         workspaces[name] = new Workspace(id, name);
     }
 }
@@ -278,11 +286,23 @@ void MainWindow::loadCategories()
         QString name = query.value(1).toString();
         int workspaceId = query.value(2).toInt();
 
+        qDebug() << "Loading category - ID:" << id << "Name:" << name
+                 << "Workspace ID:" << workspaceId;
+
+        bool categoryAdded = false;
         for (auto it = workspaces.begin(); it != workspaces.end(); ++it) {
             if (it.value()->getId() == workspaceId) {
                 it.value()->addCategory(id, name);
+                categoryAdded = true;
+                qDebug() << "Added category to workspace:" << it.key()
+                         << "with ID:" << id;
                 break;
             }
+        }
+
+        if (!categoryAdded) {
+            qDebug() << "Category" << name << "with ID" << id
+                     << "has no matching workspace (Workspace ID:" << workspaceId << ")";
         }
     }
 }
@@ -299,6 +319,9 @@ void MainWindow::loadTasks()
         QString status = query.value(5).toString();
         QString deadline = query.value(6).toString();
 
+        qDebug() << "Loading task ID:" << id << "Description:" << description
+                 << "Category ID:" << categoryId;
+
         QStringList tags;
         QSqlQuery tagQuery;
         tagQuery.prepare("SELECT tag FROM TaskTags WHERE task_id = :task_id");
@@ -308,24 +331,34 @@ void MainWindow::loadTasks()
             while (tagQuery.next()) {
                 tags.append(tagQuery.value(0).toString());
             }
+            qDebug() << "Tags for task" << id << ":" << tags;
         } else {
-            qDebug() << "Ошибка загрузки тегов для задачи" << id << ":" << tagQuery.lastError().text();
+            qDebug() << "Error loading tags for task" << id << ":" << tagQuery.lastError().text();
         }
 
-        for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
-            QMap<QString, Category*>& categories = workspaceIt.value()->getCategories();
-            for (auto categoryIt = categories.begin(); categoryIt != categories.end(); ++categoryIt) {
-                if (categoryIt.value()->getId() == categoryId) {
-                    Task* task = new Task(id, description, categoryIt.value()->getName(), tags,
-                                          difficulty, priority, status, deadline);
-                    categoryIt.value()->addTask(task);
+        bool taskLoaded = false;
+        for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end() && !taskLoaded; ++workspaceIt) {
+            Workspace* workspace = workspaceIt.value();
+            QMap<QString, Category*>& categories = workspace->getCategories();
 
-                    qDebug() << "Loaded task:" << description << "with tags:" << tags
-                             << "in workspace:" << workspaceIt.key()
-                             << "category:" << categoryIt.key();
-                    break;
+            for (auto categoryIt = categories.begin(); categoryIt != categories.end() && !taskLoaded; ++categoryIt) {
+                Category* category = categoryIt.value();
+
+                if (category->getId() == categoryId) {
+                    Task* task = new Task(id, description, category->getName(), tags,
+                                          difficulty, priority, status, deadline);
+                    category->addTask(task);
+                    taskLoaded = true;
+
+                    qDebug() << "Successfully loaded task into workspace:" << workspace->getName()
+                             << "category:" << category->getName()
+                             << "task ID:" << id;
                 }
             }
+        }
+
+        if (!taskLoaded) {
+            qDebug() << "Failed to load task - category ID" << categoryId << "not found for task ID:" << id;
         }
     }
 }
@@ -564,12 +597,32 @@ void MainWindow::addWorkspace()
     QString workspaceName = QInputDialog::getText(this, translate("Добавить рабочее пространство"),
                                                   translate("Имя рабочего пространства:"), QLineEdit::Normal, "", &ok);
     if (ok && !workspaceName.isEmpty()) {
-        QString sql = "INSERT INTO Workspaces (name) VALUES ('" + workspaceName + "');";
-        executeSQL(sql);
+        db.transaction();
+        try {
+            QSqlQuery query;
+            query.prepare("INSERT INTO Workspaces (name) VALUES (:name)");
+            query.bindValue(":name", workspaceName);
 
-        int id = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
-        workspaces[workspaceName] = new Workspace(id, workspaceName);
-        showWorkspaces();
+            if (!query.exec()) {
+                throw std::runtime_error(query.lastError().text().toStdString());
+            }
+
+            int workspaceId = query.lastInsertId().toInt();
+            qDebug() << "Inserted workspace ID:" << workspaceId;
+
+            workspaces[workspaceName] = new Workspace(workspaceId, workspaceName);
+            db.commit();
+
+            qDebug() << "Successfully added workspace:" << workspaceName
+                     << "with ID:" << workspaceId;
+
+            showWorkspaces();
+        } catch (const std::exception& e) {
+            db.rollback();
+            QMessageBox::critical(this, translate("Ошибка"),
+                                  translate("Не удалось создать рабочее пространство: ") + QString::fromStdString(e.what()));
+            qDebug() << "Error adding workspace:" << e.what();
+        }
     }
 }
 
@@ -632,23 +685,49 @@ void MainWindow::workspaceSelected()
 
 void MainWindow::addCategory()
 {
+    qDebug() << "Starting addCategory method";
+
     QString currentText = currentWorkspaceLabel->text();
     QString workspaceName = currentText.replace(translate("Рабочее пространство: "), "").replace(tr("Workspace: "), "");
 
-    if (!workspaces.contains(workspaceName)) return;
+    if (!workspaces.contains(workspaceName)) {
+        qDebug() << "Workspace not found:" << workspaceName;
+        return;
+    }
 
     bool ok;
     QString categoryName = QInputDialog::getText(this, translate("Добавить категорию"),
                                                  translate("Имя категории:"), QLineEdit::Normal, "", &ok);
     if (ok && !categoryName.isEmpty()) {
-        QString sql = "INSERT INTO Categories (name, workspace_id) VALUES ('" + categoryName + "', " +
-                      QString::number(workspaces[workspaceName]->getId()) + ");";
-        executeSQL(sql);
+        db.transaction();
 
-        int categoryId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
+        try {
+            QSqlQuery query;
+            query.prepare("INSERT INTO Categories (name, workspace_id) VALUES (:name, :workspace_id)");
+            query.bindValue(":name", categoryName);
+            query.bindValue(":workspace_id", workspaces[workspaceName]->getId());
 
-        workspaces[workspaceName]->addCategory(categoryId, categoryName);
-        showCategories(workspaceName);
+            if (!query.exec()) {
+                throw std::runtime_error(query.lastError().text().toStdString());
+            }
+
+            int categoryId = query.lastInsertId().toInt();
+            qDebug() << "Inserted category ID:" << categoryId;
+
+            workspaces[workspaceName]->addCategory(categoryId, categoryName);
+
+            db.commit();
+            showCategories(workspaceName);
+
+            qDebug() << "Successfully added category:" << categoryName
+                     << "with ID:" << categoryId
+                     << "to workspace:" << workspaceName;
+        } catch (const std::exception& e) {
+            db.rollback();
+            QMessageBox::critical(this, translate("Ошибка"),
+                                  translate("Не удалось создать категорию: ") + QString::fromStdString(e.what()));
+            qDebug() << "Error adding category:" << e.what();
+        }
     }
 }
 
@@ -702,7 +781,9 @@ void MainWindow::addTask()
     QString workspaceName = button->property("workspaceName").toString();
     QString categoryName = button->property("categoryName").toString();
 
-    if (!workspaces.contains(workspaceName) || !workspaces[workspaceName]->getCategories().contains(categoryName)) {
+    if (!workspaces.contains(workspaceName) ||
+        !workspaces[workspaceName]->getCategories().contains(categoryName)) {
+        qDebug() << "Workspace or category not found:" << workspaceName << categoryName;
         return;
     }
 
@@ -717,18 +798,11 @@ void MainWindow::addTask()
 
     QComboBox *difficultyCombo = new QComboBox(&dialog);
     difficultyCombo->addItems(QStringList()
-                              << translate("Лёгкая")
-                              << translate("Средняя")
-                              << translate("Сложная"));
+                              << translate("Лёгкая") << translate("Средняя") << translate("Сложная"));
 
     QComboBox *priorityCombo = new QComboBox(&dialog);
     priorityCombo->addItems(QStringList()
-                            << translate("Низкий")
-                            << translate("Средний")
-                            << translate("Высокий"));
-
-    difficultyCombo->setMinimumWidth(150);
-    priorityCombo->setMinimumWidth(150);
+                            << translate("Низкий") << translate("Средний") << translate("Высокий"));
 
     QDateEdit *deadlineEdit = new QDateEdit(&dialog);
     deadlineEdit->setDisplayFormat("dd-MM-yyyy");
@@ -746,8 +820,8 @@ void MainWindow::addTask()
     buttonBox.button(QDialogButtonBox::Cancel)->setText(translate("Отмена"));
     form.addRow(&buttonBox);
 
-    QObject::connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    QObject::connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(&buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(&buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     if (dialog.exec() == QDialog::Accepted) {
         QString description = descriptionEdit->text();
@@ -757,7 +831,8 @@ void MainWindow::addTask()
         QString deadline = deadlineEdit->date().toString("dd-MM-yyyy");
 
         if (description.isEmpty()) {
-            QMessageBox::warning(this, translate("Ошибка"), translate("Название задачи не может быть пустым"));
+            QMessageBox::warning(this, translate("Ошибка"),
+                                 translate("Название задачи не может быть пустым"));
             return;
         }
 
@@ -769,11 +844,12 @@ void MainWindow::addTask()
         Category *category = workspaces[workspaceName]->getCategories()[categoryName];
 
         db.transaction();
-
         try {
             QSqlQuery taskQuery;
-            taskQuery.prepare("INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
-                              "VALUES (:description, :category_id, :difficulty, :priority, :status, :deadline)");
+            taskQuery.prepare(
+                "INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
+                "VALUES (:description, :category_id, :difficulty, :priority, :status, :deadline)"
+                );
             taskQuery.bindValue(":description", description);
             taskQuery.bindValue(":category_id", category->getId());
             taskQuery.bindValue(":difficulty", difficulty);
@@ -786,8 +862,8 @@ void MainWindow::addTask()
             }
 
             int taskId = taskQuery.lastInsertId().toInt();
+            qDebug() << "Inserted task ID:" << taskId;
 
-            // Вставляем теги
             for (const QString &tag : tagList) {
                 QSqlQuery tagQuery;
                 tagQuery.prepare("INSERT INTO TaskTags (task_id, tag) VALUES (:task_id, :tag)");
@@ -805,13 +881,16 @@ void MainWindow::addTask()
                                   difficulty, priority, "Pending", deadline);
             category->addTask(task);
 
-            qDebug() << "Added task:" << description << "with tags:" << tagList;
+            qDebug() << "Added task to category:" << categoryName
+                     << "in workspace:" << workspaceName
+                     << "with ID:" << taskId;
 
             showCategories(workspaceName);
         } catch (const std::exception &e) {
             db.rollback();
             QMessageBox::critical(this, translate("Ошибка"),
                                   translate("Не удалось сохранить задачу: ") + QString::fromStdString(e.what()));
+            qDebug() << "Error adding task:" << e.what();
         }
     }
 }
@@ -1106,7 +1185,7 @@ void MainWindow::showNotifications() {
 
     QDialog notificationsDialog(this);
     notificationsDialog.setWindowTitle(translate("Уведомления"));
-    notificationsDialog.resize(500, 300); // new size
+    notificationsDialog.resize(500, 300);
 
     QVBoxLayout layout(&notificationsDialog);
 
@@ -1338,6 +1417,10 @@ void MainWindow::searchTasksByTags() {
 
         QTableWidget* resultsTable = new QTableWidget(0, 2, &resultsDialog);
         resultsTable->setHorizontalHeaderLabels({translate("Рабочее пространство"), translate("Категория")});
+
+        resultsTable->setColumnWidth(0, 180);
+        resultsTable->setColumnWidth(1, 150);
+
         resultsTable->horizontalHeader()->setStretchLastSection(true);
         resultsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
@@ -1393,12 +1476,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
 
                 bool atLeft = (hScroll->value() == hScroll->minimum());
                 bool atRight = (hScroll->value() == hScroll->maximum());
-
                 bool atTop = (vScroll->value() == vScroll->minimum());
                 bool atBottom = (vScroll->value() == vScroll->maximum());
 
                 if (abs(wheelEvent->angleDelta().x()) > abs(wheelEvent->angleDelta().y())) {
-
                     if (atLeft && wheelEvent->angleDelta().x() > 0) {
                         return true;
                     }
@@ -1406,12 +1487,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
                     if (atRight && wheelEvent->angleDelta().x() < 0) {
                         return true;
                     }
-
                     return false;
                 }
 
                 else {
-
                     if (atTop && wheelEvent->angleDelta().y() > 0) {
                         return true;
                     }
@@ -1460,7 +1539,6 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
     if (results.isEmpty()) {
         qDebug() << "No tasks found with these tags. All available tags in the system:";
         QSet<QString> allTags;
-
         for (const auto& workspace : workspaces) {
             for (const auto& category : workspace->getCategories()) {
                 for (const Task* task : category->getTasks()) {
