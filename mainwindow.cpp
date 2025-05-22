@@ -16,6 +16,7 @@
 #include <QAction>
 #include <QEvent>
 
+// Вспомогательная ф-ция превода
 static QString translate(const char* text) {
     return QCoreApplication::translate("MainWindow", text);
 }
@@ -23,6 +24,7 @@ static QString translate(const char* text) {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), isEnglish(false), isDarkTheme(false)
 {
+    // Инициализация бд
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("task_manager.db");
 
@@ -37,6 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
     executeSQL("CREATE TABLE IF NOT EXISTS TaskTags (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER, tag TEXT, FOREIGN KEY(task_id) REFERENCES Tasks(id));");
     executeSQL("CREATE TABLE IF NOT EXISTS TaskHistory (id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT NOT NULL, category_id INTEGER, difficulty TEXT, priority TEXT, status TEXT, deadline TEXT, FOREIGN KEY(category_id) REFERENCES Categories(id));");
 
+    // Кнопки для темы
     themeButton = new QPushButton(translate("Темная тема"), this);
     connect(themeButton, &QPushButton::clicked, this, &MainWindow::toggleTheme);
 
@@ -55,8 +58,10 @@ MainWindow::~MainWindow()
     db.close();
 }
 
+// Весь перевод
 QString MainWindow::translate(const QString& text) const {
     static const QMap<QString, QString> translations = {
+
         // Основное окно
         {"Менеджер задач", "Task Manager"},
         {"Добавить рабочее пространство", "Add Workspace"},
@@ -168,12 +173,14 @@ QString MainWindow::translate(const QString& text) const {
     return isEnglish ? translations.value(text, text) : text;
 }
 
-
+// Настройка интерфейса
 void MainWindow::setupUI()
 {
+    // Компоновка + основной виджет
     mainWidget = new QWidget(this);
     mainLayout = new QVBoxLayout(mainWidget);
 
+    // Sidebar
     sidebar = new QScrollArea(this);
     sidebar->setFixedWidth(250);
     sidebar->setWidgetResizable(true);
@@ -194,12 +201,14 @@ void MainWindow::setupUI()
 
     sidebarLayout->addWidget(toggleSidebarButton);
     sidebarLayout->addWidget(addWorkspaceButton);
-    toggleSidebarButton->raise();
+    toggleSidebarButton->raise(); // Кнопка поверх других виджетов
 
+    // Рабочие пространства
     showWorkspaces();
 
     sidebar->setWidget(sidebarContent);
 
+    // Область рабочей области
     workspaceView = new QWidget(this);
     workspaceLayout = new QVBoxLayout(workspaceView);
 
@@ -223,6 +232,7 @@ void MainWindow::setupUI()
     workspaceLayout->addWidget(addCategoryButton);
     workspaceLayout->addWidget(categoriesScroll);
 
+    // Правый sidebar
     QWidget *rightSidebar = new QWidget(this);
     QVBoxLayout *rightSidebarLayout = new QVBoxLayout(rightSidebar);
     rightSidebarLayout->setAlignment(Qt::AlignTop);
@@ -247,6 +257,8 @@ void MainWindow::setupUI()
     rightSidebarLayout->addWidget(languageButton);
     rightSidebarLayout->addWidget(searchByTagsButton);
 
+
+    // Основной слой
     QHBoxLayout *contentLayout = new QHBoxLayout();
     contentLayout->addWidget(sidebar);
     contentLayout->addWidget(workspaceView);
@@ -260,6 +272,7 @@ void MainWindow::setupUI()
 
 }
 
+// Загрузка Workspaces из бд
 void MainWindow::loadWorkspaces()
 {
     QSqlQuery query("SELECT id, name FROM Workspaces;");
@@ -278,6 +291,7 @@ void MainWindow::loadWorkspaces()
     }
 }
 
+// Загрузка Categories из бд
 void MainWindow::loadCategories()
 {
     QSqlQuery query("SELECT id, name, workspace_id FROM Categories;");
@@ -307,6 +321,7 @@ void MainWindow::loadCategories()
     }
 }
 
+// Загрузка тасков из бд
 void MainWindow::loadTasks()
 {
     QSqlQuery query("SELECT id, description, category_id, difficulty, priority, status, deadline FROM Tasks;");
@@ -322,6 +337,7 @@ void MainWindow::loadTasks()
         qDebug() << "Loading task ID:" << id << "Description:" << description
                  << "Category ID:" << categoryId;
 
+        // Теги
         QStringList tags;
         QSqlQuery tagQuery;
         tagQuery.prepare("SELECT tag FROM TaskTags WHERE task_id = :task_id");
@@ -336,6 +352,7 @@ void MainWindow::loadTasks()
             qDebug() << "Error loading tags for task" << id << ":" << tagQuery.lastError().text();
         }
 
+        // Поиск категории
         bool taskLoaded = false;
         for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end() && !taskLoaded; ++workspaceIt) {
             Workspace* workspace = workspaceIt.value();
@@ -363,6 +380,7 @@ void MainWindow::loadTasks()
     }
 }
 
+// Загрузка истории из бд
 void MainWindow::loadTaskHistory() {
     QSqlQuery query("SELECT id, description, category_id, difficulty, priority, status, deadline FROM TaskHistory;");
     while (query.next()) {
@@ -374,6 +392,7 @@ void MainWindow::loadTaskHistory() {
         QString status = query.value(5).toString();
         QString deadline = query.value(6).toString();
 
+        // Приведение статуса к текущему языку
         if (isEnglish && status == "Завершено") {
             status = "Completed";
         } else if (!isEnglish && status == "Completed") {
@@ -385,6 +404,7 @@ void MainWindow::loadTaskHistory() {
     }
 }
 
+// Выполнение sql запроса
 void MainWindow::executeSQL(const QString& sql)
 {
     QSqlQuery query;
@@ -393,8 +413,10 @@ void MainWindow::executeSQL(const QString& sql)
     }
 }
 
+// Отображение Workspaces
 void MainWindow::showWorkspaces()
 {
+    // Очищение предыдущих элементов (кроме первых 2х - меню & добавления)
     while (sidebarLayout->count() > 2) {
         QLayoutItem* item = sidebarLayout->takeAt(2);
         if (item->widget()) {
@@ -403,18 +425,21 @@ void MainWindow::showWorkspaces()
         delete item;
     }
 
+    // Добавление рабочего пр-ва
     for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
         QWidget* workspaceWidget = new QWidget(sidebarContent);
         QHBoxLayout* workspaceLayout = new QHBoxLayout(workspaceWidget);
         workspaceLayout->setContentsMargins(0, 0, 0, 0);
         workspaceLayout->setSpacing(5);
 
+        // Кнопка выбора рабочего пр-ва
         QPushButton* workspaceBtn = new QPushButton(workspaceIt.key(), workspaceWidget);
         workspaceBtn->setProperty("workspaceName", workspaceIt.key());
         workspaceBtn->setMinimumWidth(160);
         workspaceBtn->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
         connect(workspaceBtn, &QPushButton::clicked, this, &MainWindow::workspaceSelected);
 
+        // Кнопка удаления
         QPushButton* deleteBtn = new QPushButton("×", workspaceWidget);
         deleteBtn->setProperty("workspaceName", workspaceIt.key());
         deleteBtn->setFixedSize(25, 25);
@@ -425,13 +450,16 @@ void MainWindow::showWorkspaces()
         sidebarLayout->addWidget(workspaceWidget);
     }
 
+    // Добавление растягивающегося элемента внизу
     sidebarLayout->addStretch();
 }
 
+// Отображение категорий
 void MainWindow::showCategories(const QString& workspaceName) {
     currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(workspaceName));
     addCategoryButton->setEnabled(true);
 
+    // Очищение предыдущих категорй
     QLayoutItem* item;
     while ((item = categoriesLayout->takeAt(0))) {
         delete item->widget();
@@ -445,6 +473,7 @@ void MainWindow::showCategories(const QString& workspaceName) {
         QGroupBox *group = new QGroupBox(it.key(), categoriesContent);
         QVBoxLayout *layout = new QVBoxLayout(group);
 
+        // Мин высота
         group->setMinimumHeight(350);
 
         QPushButton *addTaskBtn = new QPushButton(translate("Создать задачу"), group);
@@ -469,15 +498,16 @@ void MainWindow::showCategories(const QString& workspaceName) {
             translate("Приоритет"), translate("Сложность"), translate("Действия")
         });
 
-        table->setColumnWidth(0, 150);
-        table->setColumnWidth(1, 90);
-        table->setColumnWidth(2, 90);
-        table->setColumnWidth(3, 90);
-        table->setColumnWidth(4, 90);
-        table->setColumnWidth(5, 120);
+        // Начальная ширина столбцов (px)
+        table->setColumnWidth(0, 150);  // название
+        table->setColumnWidth(1, 90);   // срок
+        table->setColumnWidth(2, 90);   // статус
+        table->setColumnWidth(3, 90);   // приоритет
+        table->setColumnWidth(4, 90);   // сложность
+        table->setColumnWidth(5, 120);  // кнопки действий
 
         table->horizontalHeader()->setStretchLastSection(false);
-        table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+        table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);  // только 1й столбец растягивается
         table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
         table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
         table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
@@ -488,11 +518,13 @@ void MainWindow::showCategories(const QString& workspaceName) {
         for (Task *task : it.value()->getTasks()) {
             table->insertRow(row);
 
+            // Ячейка с описанием задачи
             QTableWidgetItem *descriptionItem = new QTableWidgetItem(task->getDescription());
-            descriptionItem->setToolTip(task->getDescription());
+            descriptionItem->setToolTip(task->getDescription()); // Полный текст в подсказке
             descriptionItem->setFlags(descriptionItem->flags() ^ Qt::ItemIsEditable);
             table->setItem(row, 0, descriptionItem);
 
+            // Остальные ячейки
             table->setItem(row, 1, new QTableWidgetItem(task->getDeadline()));
 
             QString status = task->getStatus();
@@ -506,6 +538,7 @@ void MainWindow::showCategories(const QString& workspaceName) {
             table->setItem(row, 3, new QTableWidgetItem(task->getPriority()));
             table->setItem(row, 4, new QTableWidgetItem(task->getDifficulty()));
 
+            // Ячейка с действиями
             QWidget *actions = new QWidget(table);
             QHBoxLayout *actionsLayout = new QHBoxLayout(actions);
             actionsLayout->setContentsMargins(0, 0, 0, 0);
@@ -558,6 +591,7 @@ void MainWindow::showCategories(const QString& workspaceName) {
             actionsLayout->addWidget(deleteBtn);
             table->setCellWidget(row, 5, actions);
 
+            // Переход к след строке
             row++;
         }
 
@@ -572,33 +606,42 @@ void MainWindow::showCategories(const QString& workspaceName) {
     categoriesLayout->addStretch();
 }
 
+// Переключение видимости бок понели
 void MainWindow::toggleSidebar()
 {
     if (sidebar->width() > 50) {
+        // Сворачивание
         sidebar->setFixedWidth(0);
         toggleSidebarButton->setText(">");
-        toggleSidebarButton->setParent(this);
+        toggleSidebarButton->setParent(this); // перенос кнопки в гл меню
 
+        // Кнопка в левом верхнем углу
         toggleSidebarButton->move(20, 20);
 
+        // Кнопка поверх элементов
         toggleSidebarButton->raise();
         toggleSidebarButton->show();
     } else {
+
+        // Разврачивание
         sidebar->setFixedWidth(250);
         toggleSidebarButton->setText("<");
-        toggleSidebarButton->setParent(sidebarContent);
+        toggleSidebarButton->setParent(sidebarContent); // возвращение в sidebar
         sidebarLayout->insertWidget(0, toggleSidebarButton);
     }
 }
 
+// Добавление рабочего пространства
 void MainWindow::addWorkspace()
 {
+    // Запрос имени
     bool ok;
     QString workspaceName = QInputDialog::getText(this, translate("Добавить рабочее пространство"),
                                                   translate("Имя рабочего пространства:"), QLineEdit::Normal, "", &ok);
     if (ok && !workspaceName.isEmpty()) {
         db.transaction();
         try {
+            // Вставка в бд
             QSqlQuery query;
             query.prepare("INSERT INTO Workspaces (name) VALUES (:name)");
             query.bindValue(":name", workspaceName);
@@ -626,6 +669,7 @@ void MainWindow::addWorkspace()
     }
 }
 
+// Удаление workspace
 void MainWindow::removeWorkspace()
 {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
@@ -634,55 +678,81 @@ void MainWindow::removeWorkspace()
     QString workspaceName = button->property("workspaceName").toString();
     if (!workspaces.contains(workspaceName)) return;
 
+    // Подтверждение
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, translate("Удалить рабочее пространство"),
                                   translate("Вы уверены, что хотите удалить рабочее пространство \"%1\" и ВСЕ его содержимое?").arg(workspaceName),
                                   QMessageBox::Yes|QMessageBox::No);
     if (reply != QMessageBox::Yes) return;
 
-    int workspaceId = workspaces[workspaceName]->getId();
+    Workspace *workspace = workspaces[workspaceName];
 
-    QSqlDatabase::database().transaction();
+    // Удаление из бд
+    int workspaceId = workspace->getId();
 
+    db.transaction();
     try {
-        executeSQL(QString("DELETE FROM Tasks WHERE category_id IN "
-                           "(SELECT id FROM Categories WHERE workspace_id = %1)").arg(workspaceId));
-        executeSQL(QString("DELETE FROM Categories WHERE workspace_id = %1").arg(workspaceId));
-        executeSQL(QString("DELETE FROM Workspaces WHERE id = %1").arg(workspaceId));
-        QSqlDatabase::database().commit();
-    } catch (...) {
-        QSqlDatabase::database().rollback();
-        QMessageBox::critical(this, translate("Ошибка"), translate("Не удалось удалить рабочее пространство"));
-        return;
-    }
-
-    Workspace* workspace = workspaces[workspaceName];
-    auto categories = workspace->getCategories();
-    for (auto it = categories.begin(); it != categories.end(); ++it) {
-        Category* category = it.value();
-        for (Task* task : category->getTasks()) {
-            delete task;
+        // Удаление всех задач + тегов
+        QSqlQuery deleteTasksQuery;
+        deleteTasksQuery.prepare(
+            "DELETE FROM Tasks WHERE id IN ("
+            "SELECT t.id FROM Tasks t "
+            "JOIN Categories c ON t.category_id = c.id "
+            "WHERE c.workspace_id = :workspace_id"
+            ")"
+            );
+        deleteTasksQuery.bindValue(":workspace_id", workspaceId);
+        if (!deleteTasksQuery.exec()) {
+            throw std::runtime_error(deleteTasksQuery.lastError().text().toStdString());
         }
-        delete category;
-    }
 
-    delete workspace;
-    workspaces.remove(workspaceName);
-    setupUI();
+        // Удаление всех категорий
+        QSqlQuery deleteCategoriesQuery;
+        deleteCategoriesQuery.prepare("DELETE FROM Categories WHERE workspace_id = :workspace_id");
+        deleteCategoriesQuery.bindValue(":workspace_id", workspaceId);
+        if (!deleteCategoriesQuery.exec()) {
+            throw std::runtime_error(deleteCategoriesQuery.lastError().text().toStdString());
+        }
+
+        // Удаление workspace
+        QSqlQuery deleteWorkspaceQuery;
+        deleteWorkspaceQuery.prepare("DELETE FROM Workspaces WHERE id = :workspace_id");
+        deleteWorkspaceQuery.bindValue(":workspace_id", workspaceId);
+        if (!deleteWorkspaceQuery.exec()) {
+            throw std::runtime_error(deleteWorkspaceQuery.lastError().text().toStdString());
+        }
+
+        db.commit();
+
+        delete workspace;
+        workspaces.remove(workspaceName);
+        showWorkspaces();
+
+        qDebug() << "Workspace deleted successfully. ID:" << workspaceId;
+    } catch (const std::exception &e) {
+        db.rollback();
+        QMessageBox::critical(this, translate("Ошибка"),
+                              translate("Не удалось удалить рабочее пространство: ") + QString::fromStdString(e.what()));
+        qDebug() << "Error deleting workspace:" << e.what();
+    }
 }
 
+// Выбор workspace'а
 void MainWindow::workspaceSelected()
 {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
     if (!button) return;
 
     QString workspaceName = button->text();
+
+    // Очистка от предыдущих переводов
     workspaceName.replace(translate("Workspace: "), "");
     workspaceName.replace(translate("Рабочее пространство: "), "");
 
     showCategories(workspaceName);
 }
 
+// Добавление категории
 void MainWindow::addCategory()
 {
     qDebug() << "Starting addCategory method";
@@ -695,10 +765,12 @@ void MainWindow::addCategory()
         return;
     }
 
+    // Запрос имени новой категории
     bool ok;
     QString categoryName = QInputDialog::getText(this, translate("Добавить категорию"),
                                                  translate("Имя категории:"), QLineEdit::Normal, "", &ok);
     if (ok && !categoryName.isEmpty()) {
+        // Вставка в бд
         db.transaction();
 
         try {
@@ -731,6 +803,7 @@ void MainWindow::addCategory()
     }
 }
 
+// Диалог уведов
 QDialog* MainWindow::createNotificationDialog()
 {
     QDialog* dialog = new QDialog(this);
@@ -739,6 +812,7 @@ QDialog* MainWindow::createNotificationDialog()
 
     QVBoxLayout* layout = new QVBoxLayout(dialog);
 
+    // Обновление перевода
     connect(this, &MainWindow::languageChanged, dialog, [=]() {
         dialog->setWindowTitle(translate("Notifications"));
     });
@@ -746,14 +820,17 @@ QDialog* MainWindow::createNotificationDialog()
     return dialog;
 }
 
+// Удаление категории
 void MainWindow::removeCategory()
 {
+    // Получение имени workspace'а + категории из свойств кнопки
     QPushButton *button = qobject_cast<QPushButton*>(sender());
     if (!button) return;
 
     QString workspaceName = button->property("workspaceName").toString();
     QString categoryName = button->property("categoryName").toString();
 
+    // Проверка на сущ + подтверждение удаления
     if (!workspaces.contains(workspaceName)) return;
 
     Workspace *workspace = workspaces[workspaceName];
@@ -763,16 +840,50 @@ void MainWindow::removeCategory()
     reply = QMessageBox::question(this, translate("Удалить категорию"),
                                   translate("Вы уверены, что хотите удалить категорию \"%1\"?").arg(categoryName),
                                   QMessageBox::Yes|QMessageBox::No);
-    if (reply == QMessageBox::Yes) {
-        QString sql = "DELETE FROM Categories WHERE id = " +
-                      QString::number(workspace->getCategories()[categoryName]->getId()) + ";";
-        executeSQL(sql);
+    if (reply != QMessageBox::Yes) return;
 
+    Category *category = workspace->getCategories()[categoryName];
+    int categoryId = category->getId();
+
+    db.transaction();
+    try {
+        // Удаление всех здач + тегов
+        QSqlQuery deleteTasksQuery;
+        deleteTasksQuery.prepare(
+            "DELETE FROM Tasks WHERE id IN ("
+            "SELECT t.id FROM Tasks t "
+            "WHERE t.category_id = :category_id"
+            ")"
+            );
+        deleteTasksQuery.bindValue(":category_id", categoryId);
+        if (!deleteTasksQuery.exec()) {
+            throw std::runtime_error(deleteTasksQuery.lastError().text().toStdString());
+        }
+
+        // Удаление категории
+        QSqlQuery deleteCategoryQuery;
+        deleteCategoryQuery.prepare("DELETE FROM Categories WHERE id = :category_id");
+        deleteCategoryQuery.bindValue(":category_id", categoryId);
+        if (!deleteCategoryQuery.exec()) {
+            throw std::runtime_error(deleteCategoryQuery.lastError().text().toStdString());
+        }
+
+        db.commit();
+
+        // Удаление из памяти
         workspace->removeCategory(categoryName);
         showCategories(workspaceName);
+
+        qDebug() << "Category deleted successfully. ID:" << categoryId;
+    } catch (const std::exception &e) {
+        db.rollback();
+        QMessageBox::critical(this, translate("Ошибка"),
+                              translate("Не удалось удалить категорию: ") + QString::fromStdString(e.what()));
+        qDebug() << "Error deleting category:" << e.what();
     }
 }
 
+// Добавление таски
 void MainWindow::addTask()
 {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
@@ -781,18 +892,20 @@ void MainWindow::addTask()
     QString workspaceName = button->property("workspaceName").toString();
     QString categoryName = button->property("categoryName").toString();
 
+    // Проверка на сущ
     if (!workspaces.contains(workspaceName) ||
         !workspaces[workspaceName]->getCategories().contains(categoryName)) {
         qDebug() << "Workspace or category not found:" << workspaceName << categoryName;
         return;
     }
 
+    // Диалог для ввода
     QDialog dialog(this);
     dialog.setWindowTitle(translate("Создать задачу"));
     dialog.resize(350, 250);
 
     QFormLayout form(&dialog);
-
+    // Поля ввода
     QLineEdit *descriptionEdit = new QLineEdit(&dialog);
     QLineEdit *tagsEdit = new QLineEdit(&dialog);
 
@@ -836,6 +949,7 @@ void MainWindow::addTask()
             return;
         }
 
+        // Теги (обработка)
         QStringList tagList = tags.split(',', Qt::SkipEmptyParts);
         for (QString &tag : tagList) {
             tag = tag.trimmed();
@@ -845,6 +959,7 @@ void MainWindow::addTask()
 
         db.transaction();
         try {
+            // Вставляем задачу
             QSqlQuery taskQuery;
             taskQuery.prepare(
                 "INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
@@ -861,9 +976,11 @@ void MainWindow::addTask()
                 throw std::runtime_error(taskQuery.lastError().text().toStdString());
             }
 
+            // Получение ID
             int taskId = taskQuery.lastInsertId().toInt();
             qDebug() << "Inserted task ID:" << taskId;
 
+            // Вставка тегов
             for (const QString &tag : tagList) {
                 QSqlQuery tagQuery;
                 tagQuery.prepare("INSERT INTO TaskTags (task_id, tag) VALUES (:task_id, :tag)");
@@ -877,6 +994,7 @@ void MainWindow::addTask()
 
             db.commit();
 
+            // Добавление в память
             Task *task = new Task(taskId, description, categoryName, tagList,
                                   difficulty, priority, "Pending", deadline);
             category->addTask(task);
@@ -895,6 +1013,7 @@ void MainWindow::addTask()
     }
 }
 
+// Удаление таски
 void MainWindow::removeTask()
 {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
@@ -909,6 +1028,7 @@ void MainWindow::removeTask()
         return;
     }
 
+    // Поиск для удаления
     Category *category = workspaces[workspaceName]->getCategories()[categoryName];
     Task *taskToDelete = nullptr;
     int taskIndex = -1;
@@ -923,27 +1043,53 @@ void MainWindow::removeTask()
 
     if (!taskToDelete) return;
 
+    // Подтверждение
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, translate("Delete Task"),
                                   translate("Вы уверены, что хотите удалить задачу \"%1\"?").arg(taskDescription),
                                   QMessageBox::Yes|QMessageBox::No);
     if (reply != QMessageBox::Yes) return;
 
-    QString sql = "DELETE FROM Tasks WHERE id = " + QString::number(taskToDelete->getId()) + ";";
-    executeSQL(sql);
+    db.transaction();
 
-    sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(taskToDelete->getId()) + ";";
-    executeSQL(sql);
+    try {
+        // Удаление тегов
+        QSqlQuery deleteTagsQuery;
+        deleteTagsQuery.prepare("DELETE FROM TaskTags WHERE task_id = :task_id");
+        deleteTagsQuery.bindValue(":task_id", taskToDelete->getId());
+        if (!deleteTagsQuery.exec()) {
+            throw std::runtime_error(deleteTagsQuery.lastError().text().toStdString());
+        }
 
-    category->getTasks().remove(taskIndex);
-    delete taskToDelete;
+        // Удаление таски
+        QSqlQuery deleteTaskQuery;
+        deleteTaskQuery.prepare("DELETE FROM Tasks WHERE id = :task_id");
+        deleteTaskQuery.bindValue(":task_id", taskToDelete->getId());
+        if (!deleteTaskQuery.exec()) {
+            throw std::runtime_error(deleteTaskQuery.lastError().text().toStdString());
+        }
 
-    showCategories(workspaceName);
+        db.commit();
+
+        // Удаление из памяти
+        delete category->getTasks().takeAt(taskIndex);
+        showCategories(workspaceName);
+
+        // Дебаги
+        qDebug() << "Task deleted successfully. ID:" << taskToDelete->getId();
+    } catch (const std::exception &e) {
+        db.rollback();
+        QMessageBox::critical(this, translate("Ошибка"),
+                              translate("Не удалось удалить задачу: ") + QString::fromStdString(e.what()));
+        qDebug() << "Error deleting task:" << e.what();
+    }
 }
 
+// Изменение статуса задачи
 void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& categoryName,
                                   const QString& taskDescription, const QString& newStatus)
 {
+    // Проверка на сущ
     if (!workspaces.contains(workspaceName)) {
         QMessageBox::warning(this, translate("Ошибка"), translate("Рабочее пространство не найдено"));
         return;
@@ -955,6 +1101,7 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
         return;
     }
 
+    // Поиск
     Category *category = workspace->getCategories()[categoryName];
     Task *taskToComplete = nullptr;
     int taskIndex = -1;
@@ -975,9 +1122,11 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
     QString statusToSet = newStatus;
     QString currentStatus = taskToComplete->getStatus();
 
+    // Проверка на завершение таски (с учетом перевода)
     bool isCompleting = (newStatus == "Завершено" || newStatus == "Completed") &&
                         (currentStatus != "Завершено" && currentStatus != "Completed");
 
+    // Обновление в бд
     QString sql = QString("UPDATE Tasks SET status = '%1' WHERE id = %2")
                       .arg(statusToSet)
                       .arg(taskToComplete->getId());
@@ -986,6 +1135,7 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
     taskToComplete->setStatus(statusToSet);
 
     if (isCompleting) {
+        // Перенос задачи в историю (если выполнена)
         sql = QString("INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
                       "VALUES ('%1', %2, '%3', '%4', '%5', '%6')")
                   .arg(taskToComplete->getDescription())
@@ -998,20 +1148,24 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
 
         int historyId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
 
+        // Копирование тегов
         for (const QString &tag : taskToComplete->getTags()) {
             executeSQL(QString("INSERT INTO TaskTags (task_id, tag) VALUES (%1, '%2')")
                            .arg(historyId).arg(tag));
         }
 
+        // Удаление из активных задач
         executeSQL(QString("DELETE FROM Tasks WHERE id = %1").arg(taskToComplete->getId()));
         executeSQL(QString("DELETE FROM TaskTags WHERE task_id = %1").arg(taskToComplete->getId()));
 
+        // Обновление данных
         Task historyTask(taskToComplete->getId(), taskToComplete->getDescription(),
                          categoryName, taskToComplete->getTags(),
                          taskToComplete->getDifficulty(), taskToComplete->getPriority(),
                          isEnglish ? "Completed" : "Завершено", taskToComplete->getDeadline());
         taskHistory.append(historyTask);
 
+        // Удаление задачи из категории
         delete category->getTasks().takeAt(taskIndex);
 
         QMessageBox::information(this, translate("Задача завершена"),
@@ -1024,11 +1178,14 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
     showCategories(workspaceName);
 }
 
+// тест
+// Проврка на завершенность статуса
 bool MainWindow::isCompletedStatus(const QString& status) const {
     return compareStringsIgnoreCase(status, "Завершено") ||
            compareStringsIgnoreCase(status, "Completed");
 }
 
+// Отображение истории
 void MainWindow::showHistory()
 {
     QDialog historyDialog(this);
@@ -1045,6 +1202,7 @@ void MainWindow::showHistory()
     historyTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     historyTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 
+    // Заполнение данными
     historyTable->setRowCount(taskHistory.size());
     for (int i = 0; i < taskHistory.size(); ++i) {
         const Task &task = taskHistory[i];
@@ -1056,6 +1214,7 @@ void MainWindow::showHistory()
         historyTable->setItem(i, 5, new QTableWidgetItem(task.getDifficulty()));
     }
 
+    // Кнопки управления
     QPushButton *restoreButton = new QPushButton(translate("Восстановить задачу"), &historyDialog);
     QPushButton *deleteButton = new QPushButton(translate("Удалить задачу"), &historyDialog);
     QPushButton *closeButton = new QPushButton(translate("Закрыть"), &historyDialog);
@@ -1083,8 +1242,10 @@ void MainWindow::showHistory()
     historyDialog.exec();
 }
 
+// Возвращение задачи из истории
 void MainWindow::restoreTaskFromHistory()
 {
+    // Запрос данных
     bool ok;
     QString taskDescription = QInputDialog::getText(this, translate("Восстановить задачу"),
                                                     translate("Введите описание задачи для восстановления:"),
@@ -1101,6 +1262,7 @@ void MainWindow::restoreTaskFromHistory()
                                                  QLineEdit::Normal, "", &ok);
     if (!ok || categoryName.isEmpty()) return;
 
+    // Поиск задач
     for (auto it = taskHistory.begin(); it != taskHistory.end(); ++it) {
         if (compareStringsIgnoreCase(it->getDescription(), taskDescription)) {
             if (!workspaces.contains(workspaceName)) {
@@ -1116,6 +1278,7 @@ void MainWindow::restoreTaskFromHistory()
 
             Category *category = workspace->getCategories()[categoryName];
 
+            // Вставка в активные задачи
             QString sql = "INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
                           "VALUES ('" + it->getDescription() + "', " + QString::number(category->getId()) +
                           ", '" + it->getDifficulty() + "', '" + it->getPriority() + "', '" +
@@ -1129,12 +1292,14 @@ void MainWindow::restoreTaskFromHistory()
                 executeSQL(sql);
             }
 
+            // Удаление из истории
             sql = "DELETE FROM TaskHistory WHERE id = " + QString::number(it->getId()) + ";";
             executeSQL(sql);
 
             sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(it->getId()) + ";";
             executeSQL(sql);
 
+            // Создание новой задачи и добавление в категорию
             Task *task = new Task(taskId, it->getDescription(), categoryName,
                                   it->getTags(), it->getDifficulty(),
                                   it->getPriority(), it->getStatus(),
@@ -1153,8 +1318,10 @@ void MainWindow::restoreTaskFromHistory()
     QMessageBox::warning(this, translate("Error"), translate("Задача не найдена в истории"));
 }
 
+// Удаление таски из истории
 void MainWindow::deleteTaskFromHistory()
 {
+    // Запрос описания задачи для удаления
     bool ok;
     QString taskDescription = QInputDialog::getText(this, translate("Удалить задачу"),
                                                     translate("Введите описание задачи для удаления:"),
@@ -1180,12 +1347,13 @@ void MainWindow::deleteTaskFromHistory()
     QMessageBox::warning(this, translate("Error"), translate("Задача не найдена в истории"));
 }
 
+// Отображение уведомлений
 void MainWindow::showNotifications() {
     checkDeadlines();
 
     QDialog notificationsDialog(this);
     notificationsDialog.setWindowTitle(translate("Уведомления"));
-    notificationsDialog.resize(500, 300);
+    notificationsDialog.resize(500, 300); // Размер окна
 
     QVBoxLayout layout(&notificationsDialog);
 
@@ -1203,8 +1371,8 @@ void MainWindow::showNotifications() {
         QListWidget *notificationsList = new QListWidget(&notificationsDialog);
 
         // Плавный скролл
-        notificationsList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);  // Прокрутка по пикселям
-        notificationsList->verticalScrollBar()->setSingleStep(5);  // Шаг скролла (меньше = плавнее)
+        notificationsList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);  // Прокрутка (px)
+        notificationsList->verticalScrollBar()->setSingleStep(5);  // Шаг скролла
         notificationsList->setStyleSheet(
             "QScrollBar:vertical {"
             "    border: none;"
@@ -1247,10 +1415,12 @@ void MainWindow::showNotifications() {
     notificationsDialog.exec();
 }
 
+// Проверка дедлайнов
 void MainWindow::checkDeadlines()
 {
     QDate currentDate = QDate::currentDate();
 
+    // Перебор
     for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
         QMap<QString, Category*>& categories = workspaceIt.value()->getCategories();
         for (auto categoryIt = categories.begin(); categoryIt != categories.end(); ++categoryIt) {
@@ -1260,6 +1430,8 @@ void MainWindow::checkDeadlines()
                 if (!taskDeadline.isEmpty()) {
                     QDate deadlineDate = QDate::fromString(taskDeadline, "dd-MM-yyyy");
                     if (deadlineDate.isValid() && deadlineDate == currentDate) {
+
+                        // Проверяем, нет ли уже такого уведомления
                         bool exists = false;
                         for (const Notification &n : notifications) {
                             if (n.getTaskDescription() == task->getDescription() &&
@@ -1268,7 +1440,7 @@ void MainWindow::checkDeadlines()
                                 break;
                             }
                         }
-
+                        // Добавление нового уведомления
                         if (!exists) {
                             notifications.append(Notification(task->getDescription(), taskDeadline));
                         }
@@ -1279,16 +1451,25 @@ void MainWindow::checkDeadlines()
     }
 }
 
+// Очистка уведомлений
 void MainWindow::clearNotifications()
 {
+    //v1
+    // пометка "просмотренные"
     for (Notification &n : notifications) {
         n.markAsViewed();
     }
+
+    //v2
+    // Полное удаление:
+    // notifications.clear();
 }
 
+// Смена языка
 void MainWindow::toggleLanguage() {
     isEnglish = !isEnglish;
 
+    // Обновление уведомлений + полное обновление интерфейса
     for (Notification &n : notifications) {
         n.updateMessage(isEnglish);
     }
@@ -1296,6 +1477,7 @@ void MainWindow::toggleLanguage() {
     retranslateUi();
 }
 
+// Обработчик событий изменения языка
 void MainWindow::changeEvent(QEvent *event)
 {
     if (event->type() == QEvent::LanguageChange) {
@@ -1304,6 +1486,7 @@ void MainWindow::changeEvent(QEvent *event)
     QMainWindow::changeEvent(event);
 }
 
+// Диалог ввода
 QInputDialog* MainWindow::createInputDialog(const QString &title, const QString &label)
 {
     QInputDialog* dialog = new QInputDialog(this);
@@ -1311,6 +1494,7 @@ QInputDialog* MainWindow::createInputDialog(const QString &title, const QString 
     dialog->setLabelText(label);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
 
+    // Обновление перевода при изменении языка
     connect(this, &MainWindow::languageChanged, dialog, [=]() {
         dialog->setWindowTitle(tr(qPrintable(title)));
         dialog->setLabelText(tr(qPrintable(label)));
@@ -1319,7 +1503,7 @@ QInputDialog* MainWindow::createInputDialog(const QString &title, const QString 
     return dialog;
 }
 
-
+// Обновление интерфейса
 void MainWindow::updateUI() {
     setWindowTitle(translate("Менеджер задач"));
     addWorkspaceButton->setText(translate("Добавить рабочее пространство"));
@@ -1329,6 +1513,7 @@ void MainWindow::updateUI() {
     languageButton->setText(isEnglish ? translate("Русский") : translate("English"));
     searchByTagsButton->setText(translate("Поиск по тегам"));
 
+    // Обновление отображения рб + категорий
     QString currentText = currentWorkspaceLabel->text();
     if (currentText != translate("Выберите рабочее пространство")) {
         QString cleanName = currentText;
@@ -1344,6 +1529,7 @@ void MainWindow::updateUI() {
         showCategories(cleanName);
     }
 
+    // Обновление открытых диалогов
     QWidgetList widgets = QApplication::allWidgets();
     for (QWidget *widget : widgets) {
         if (widget->isWindow() && widget != this) {
@@ -1361,7 +1547,10 @@ void MainWindow::updateUI() {
     }
 }
 
+// Полное обновление перевода
 void MainWindow::retranslateUi() {
+
+    // Основные элементы
     setWindowTitle(translate("Менеджер задач"));
     addWorkspaceButton->setText(translate("Добавить рабочее пространство"));
     addCategoryButton->setText(translate("Добавить категорию"));
@@ -1370,8 +1559,10 @@ void MainWindow::retranslateUi() {
     languageButton->setText(isEnglish ? "Русский" : "English");
     searchByTagsButton->setText(translate("Поиск по тегам"));
 
+    // Кнопки темы
     themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
 
+    // Текущее рб
     QString currentText = currentWorkspaceLabel->text();
     if (currentText != translate("Выберите рабочее пространство")) {
         QString cleanName = currentText;
@@ -1380,6 +1571,7 @@ void MainWindow::retranslateUi() {
         currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(cleanName));
     }
 
+    // Категории и задачи
     if (!currentWorkspaceLabel->text().isEmpty()) {
         QString cleanName = currentWorkspaceLabel->text();
         cleanName.replace(translate("Рабочее пространство: "), "")
@@ -1388,6 +1580,7 @@ void MainWindow::retranslateUi() {
     }
 }
 
+// Поиск по тегам
 void MainWindow::searchTasksByTags() {
     bool ok;
     QString tagsInput = QInputDialog::getText(this, translate("Поиск задач по тегам"),
@@ -1418,12 +1611,13 @@ void MainWindow::searchTasksByTags() {
         QTableWidget* resultsTable = new QTableWidget(0, 2, &resultsDialog);
         resultsTable->setHorizontalHeaderLabels({translate("Рабочее пространство"), translate("Категория")});
 
-        resultsTable->setColumnWidth(0, 180);
+        resultsTable->setColumnWidth(0, 180);  // +30!
         resultsTable->setColumnWidth(1, 150);
 
         resultsTable->horizontalHeader()->setStretchLastSection(true);
         resultsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
+        // Удаление дубликатов
         QSet<QPair<QString, QString>> uniqueResults;
         for (const auto& result : results) {
             uniqueResults.insert(result);
@@ -1448,16 +1642,19 @@ void MainWindow::searchTasksByTags() {
     resultsDialog.exec();
 }
 
+// Возвращение строки в нижнем реигстре
 QString MainWindow::toLowerCase(const QString& str) const
 {
     return str.toLower();
 }
 
+// Сравнение строк (без учета регистра)
 bool MainWindow::compareStringsIgnoreCase(const QString& a, const QString& b) const
 {
     return a.compare(b, Qt::CaseInsensitive) == 0;
 }
 
+// Настройка Scroll'а
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
     if (event->type() == QEvent::Wheel) {
         QWidget *widget = qobject_cast<QWidget*>(obj);
@@ -1474,27 +1671,34 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
                 QScrollBar *hScroll = table->horizontalScrollBar();
                 QScrollBar *vScroll = table->verticalScrollBar();
 
+                // Проверка границ скролла (горизонтального)
                 bool atLeft = (hScroll->value() == hScroll->minimum());
                 bool atRight = (hScroll->value() == hScroll->maximum());
+
+                // Проверка границ скролла (вертикального)
                 bool atTop = (vScroll->value() == vScroll->minimum());
                 bool atBottom = (vScroll->value() == vScroll->maximum());
 
+                // Гор scroll
                 if (abs(wheelEvent->angleDelta().x()) > abs(wheelEvent->angleDelta().y())) {
+                    // Если слева и прокрутка влево - блокируем
                     if (atLeft && wheelEvent->angleDelta().x() > 0) {
                         return true;
                     }
-
+                    // Если справа и прокрутка вправо - блокируем
                     if (atRight && wheelEvent->angleDelta().x() < 0) {
                         return true;
                     }
+
                     return false;
                 }
-
+                // Верт scroll
                 else {
+                    // Если вверху и прокрутка вверх - блокируем
                     if (atTop && wheelEvent->angleDelta().y() > 0) {
                         return true;
                     }
-
+                    // Если внизу и прокрутка вниз - блокируем
                     if (atBottom && wheelEvent->angleDelta().y() < 0) {
                         return true;
                     }
@@ -1505,10 +1709,12 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
     return QMainWindow::eventFilter(obj, event);
 }
 
+// Нахождение задач по тегам
 QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& tags) {
     QVector<QPair<QString, QString>> results;
     qDebug() << "Starting tag search for tags:" << tags;
 
+    // Проверка активных тасков
     for (auto workspaceIt = workspaces.begin(); workspaceIt != workspaces.end(); ++workspaceIt) {
         Workspace* workspace = workspaceIt.value();
         QMap<QString, Category*>& categories = workspace->getCategories();
@@ -1523,6 +1729,7 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
 
                 for (const QString& taskTag : taskTags) {
                     for (const QString& searchTag : tags) {
+                        // Сравнение (без регистра)
                         if (taskTag.trimmed().compare(searchTag.trimmed(), Qt::CaseInsensitive) == 0) {
                             results.append(qMakePair(workspace->getName(), category->getName()));
                             qDebug() << "Found match in active tasks! Workspace:" << workspace->getName()
@@ -1535,10 +1742,12 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
             }
         }
     }
-
+    //Дебаг
     if (results.isEmpty()) {
         qDebug() << "No tasks found with these tags. All available tags in the system:";
         QSet<QString> allTags;
+
+        // Сборка тегов
         for (const auto& workspace : workspaces) {
             for (const auto& category : workspace->getCategories()) {
                 for (const Task* task : category->getTasks()) {
@@ -1557,6 +1766,7 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
     return results;
 }
 
+// Переключение темы
 void MainWindow::toggleTheme()
 {
     isDarkTheme = !isDarkTheme;
@@ -1564,6 +1774,7 @@ void MainWindow::toggleTheme()
     themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
 }
 
+// Применение темы
 void MainWindow::applyTheme(bool dark)
 {
     if (dark) {
@@ -1894,5 +2105,6 @@ void MainWindow::applyTheme(bool dark)
 
     this->setStyleSheet(currentThemeStyle);
 
+    // Обновление иконок в зависимости от темы
     QString iconColor = dark ? "white" : "black";
 }
