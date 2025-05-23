@@ -96,6 +96,19 @@ QString MainWindow::translate(const QString& text) const {
         {"Создать", "Create"},
         {"Отмена", "Cancel"},
 
+        {"Easy", "Лёгкая"},
+        {"Medium", "Средняя"},
+        {"Hard", "Сложная"},
+        {"Low", "Низкий"},
+        {"Medium", "Средний"},
+        {"High", "Высокий"},
+        {"Лёгкая", "Easy"},
+        {"Средняя", "Medium"},
+        {"Сложная", "Hard"},
+        {"Низкий", "Low"},
+        {"Средний", "Medium"},
+        {"Высокий", "High"},
+
         // Кнопки действий с задачами
         {"В ожидании", "Pending"},
         {"В процессе", "In Progress"},
@@ -884,6 +897,7 @@ void MainWindow::removeCategory()
 }
 
 // Добавление таски
+// Добавление таски
 void MainWindow::addTask()
 {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
@@ -913,9 +927,13 @@ void MainWindow::addTask()
     difficultyCombo->addItems(QStringList()
                               << translate("Лёгкая") << translate("Средняя") << translate("Сложная"));
 
+    difficultyCombo->setMinimumWidth(120);  // Увеличиваем минимальную ширину
+
     QComboBox *priorityCombo = new QComboBox(&dialog);
     priorityCombo->addItems(QStringList()
                             << translate("Низкий") << translate("Средний") << translate("Высокий"));
+
+    priorityCombo->setMinimumWidth(120);  // Увеличиваем минимальную ширину
 
     QDateEdit *deadlineEdit = new QDateEdit(&dialog);
     deadlineEdit->setDisplayFormat("dd-MM-yyyy");
@@ -959,6 +977,9 @@ void MainWindow::addTask()
 
         db.transaction();
         try {
+            // Устанавливаем статус в зависимости от текущего языка
+            QString status = isEnglish ? "Pending" : "В ожидании";
+
             // Вставляем задачу
             QSqlQuery taskQuery;
             taskQuery.prepare(
@@ -969,7 +990,7 @@ void MainWindow::addTask()
             taskQuery.bindValue(":category_id", category->getId());
             taskQuery.bindValue(":difficulty", difficulty);
             taskQuery.bindValue(":priority", priority);
-            taskQuery.bindValue(":status", "Pending");
+            taskQuery.bindValue(":status", status);
             taskQuery.bindValue(":deadline", deadline);
 
             if (!taskQuery.exec()) {
@@ -996,7 +1017,7 @@ void MainWindow::addTask()
 
             // Добавление в память
             Task *task = new Task(taskId, description, categoryName, tagList,
-                                  difficulty, priority, "Pending", deadline);
+                                  difficulty, priority, status, deadline);
             category->addTask(task);
 
             qDebug() << "Added task to category:" << categoryName
