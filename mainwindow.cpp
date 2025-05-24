@@ -69,6 +69,7 @@ QString MainWindow::translate(const QString& text) const {
         {"История", "History"},
         {"Уведомления", "Notifications"},
         {"Выберите рабочее пространство", "Select a workspace"},
+        {"Select a workspace", "Выберите рабочее пространство"},
         {"Рабочее пространство: %1", "Workspace: %1"},
         {"Русский", "Russian"},
         {"English", "English"},
@@ -472,7 +473,7 @@ void MainWindow::showCategories(const QString& workspaceName) {
     currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(workspaceName));
     addCategoryButton->setEnabled(true);
 
-    // Очищение предыдущих категорй
+    // Очищение предыдущих категорий
     QLayoutItem* item;
     while ((item = categoriesLayout->takeAt(0))) {
         delete item->widget();
@@ -540,16 +541,25 @@ void MainWindow::showCategories(const QString& workspaceName) {
             // Остальные ячейки
             table->setItem(row, 1, new QTableWidgetItem(task->getDeadline()));
 
+            // Перевод статуса
             QString status = task->getStatus();
             if (isEnglish) {
                 if (status == "В ожидании") status = "Pending";
                 else if (status == "В процессе") status = "In Progress";
                 else if (status == "Завершено") status = "Completed";
+            } else {
+                if (status == "Pending") status = "В ожидании";
+                else if (status == "In Progress") status = "В процессе";
+                else if (status == "Completed") status = "Завершено";
             }
             table->setItem(row, 2, new QTableWidgetItem(status));
 
-            table->setItem(row, 3, new QTableWidgetItem(task->getPriority()));
-            table->setItem(row, 4, new QTableWidgetItem(task->getDifficulty()));
+            // Перевод приоритета и сложности
+            QString priority = translate(task->getPriority());
+            QString difficulty = translate(task->getDifficulty());
+
+            table->setItem(row, 3, new QTableWidgetItem(priority));
+            table->setItem(row, 4, new QTableWidgetItem(difficulty));
 
             // Ячейка с действиями
             QWidget *actions = new QWidget(table);
@@ -741,6 +751,8 @@ void MainWindow::removeWorkspace()
         workspaces.remove(workspaceName);
         showWorkspaces();
 
+        updateUI();
+
         qDebug() << "Workspace deleted successfully. ID:" << workspaceId;
     } catch (const std::exception &e) {
         db.rollback();
@@ -751,14 +763,13 @@ void MainWindow::removeWorkspace()
 }
 
 // Выбор workspace'а
-void MainWindow::workspaceSelected()
-{
+void MainWindow::workspaceSelected() {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
     if (!button) return;
 
     QString workspaceName = button->text();
 
-    // Очистка от предыдущих переводов
+    // Удаление возможных префиксов перевода
     workspaceName.replace(translate("Workspace: "), "");
     workspaceName.replace(translate("Рабочее пространство: "), "");
 
@@ -897,7 +908,6 @@ void MainWindow::removeCategory()
 }
 
 // Добавление таски
-// Добавление таски
 void MainWindow::addTask()
 {
     QPushButton *button = qobject_cast<QPushButton*>(sender());
@@ -927,13 +937,13 @@ void MainWindow::addTask()
     difficultyCombo->addItems(QStringList()
                               << translate("Лёгкая") << translate("Средняя") << translate("Сложная"));
 
-    difficultyCombo->setMinimumWidth(120);  // Увеличиваем минимальную ширину
+    difficultyCombo->setMinimumWidth(120);  // Увеличение мин ширины
 
     QComboBox *priorityCombo = new QComboBox(&dialog);
     priorityCombo->addItems(QStringList()
                             << translate("Низкий") << translate("Средний") << translate("Высокий"));
 
-    priorityCombo->setMinimumWidth(120);  // Увеличиваем минимальную ширину
+    priorityCombo->setMinimumWidth(120);  // Увеличение мин ширины
 
     QDateEdit *deadlineEdit = new QDateEdit(&dialog);
     deadlineEdit->setDisplayFormat("dd-MM-yyyy");
@@ -977,10 +987,10 @@ void MainWindow::addTask()
 
         db.transaction();
         try {
-            // Устанавливаем статус в зависимости от текущего языка
+            // Установка статуса взависимости от языка
             QString status = isEnglish ? "Pending" : "В ожидании";
 
-            // Вставляем задачу
+            // Вставка задачи
             QSqlQuery taskQuery;
             taskQuery.prepare(
                 "INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
@@ -1141,6 +1151,18 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
     }
 
     QString statusToSet = newStatus;
+
+    if (isEnglish) {
+        if (statusToSet == "В ожидании") statusToSet = "Pending";
+        else if (statusToSet == "В процессе") statusToSet = "In Progress";
+        else if (statusToSet == "Завершено") statusToSet = "Completed";
+    } else {
+        if (statusToSet == "Pending") statusToSet = "В ожидании";
+        else if (statusToSet == "In Progress") statusToSet = "В процессе";
+        else if (statusToSet == "Completed") statusToSet = "Завершено";
+    }
+
+
     QString currentStatus = taskToComplete->getStatus();
 
     // Проверка на завершение таски (с учетом перевода)
@@ -1452,7 +1474,7 @@ void MainWindow::checkDeadlines()
                     QDate deadlineDate = QDate::fromString(taskDeadline, "dd-MM-yyyy");
                     if (deadlineDate.isValid() && deadlineDate == currentDate) {
 
-                        // Проверяем, нет ли уже такого уведомления
+                        // Пр-ка
                         bool exists = false;
                         for (const Notification &n : notifications) {
                             if (n.getTaskDescription() == task->getDescription() &&
@@ -1475,13 +1497,13 @@ void MainWindow::checkDeadlines()
 // Очистка уведомлений
 void MainWindow::clearNotifications()
 {
-    //v1
+    // test1
     // пометка "просмотренные"
     for (Notification &n : notifications) {
         n.markAsViewed();
     }
 
-    //v2
+    // test2
     // Полное удаление:
     // notifications.clear();
 }
@@ -1570,7 +1592,6 @@ void MainWindow::updateUI() {
 
 // Полное обновление перевода
 void MainWindow::retranslateUi() {
-
     // Основные элементы
     setWindowTitle(translate("Менеджер задач"));
     addWorkspaceButton->setText(translate("Добавить рабочее пространство"));
@@ -1583,7 +1604,7 @@ void MainWindow::retranslateUi() {
     // Кнопки темы
     themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
 
-    // Текущее рб
+    // Текущее рабочее пространство
     QString currentText = currentWorkspaceLabel->text();
     if (currentText != translate("Выберите рабочее пространство")) {
         QString cleanName = currentText;
@@ -1592,8 +1613,9 @@ void MainWindow::retranslateUi() {
         currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(cleanName));
     }
 
-    // Категории и задачи
-    if (!currentWorkspaceLabel->text().isEmpty()) {
+    // Обновление отображения категорий и задач
+    if (!currentWorkspaceLabel->text().isEmpty() &&
+        currentWorkspaceLabel->text() != translate("Выберите рабочее пространство")) {
         QString cleanName = currentWorkspaceLabel->text();
         cleanName.replace(translate("Рабочее пространство: "), "")
             .replace(translate("Workspace: "), "");
