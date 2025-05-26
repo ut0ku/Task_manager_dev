@@ -226,7 +226,7 @@ void MainWindow::setupUI()
     workspaceView = new QWidget(this);
     workspaceLayout = new QVBoxLayout(workspaceView);
 
-    currentWorkspaceLabel = new QLabel(translate("Выберите рабочее пространство"), this);
+    currentWorkspaceLabel = new QLabel(translate("Select a workspace"), this);
     currentWorkspaceLabel->setAlignment(Qt::AlignCenter);
 
     addCategoryButton = new QPushButton(translate("Add Category"), this);
@@ -281,7 +281,7 @@ void MainWindow::setupUI()
     mainLayout->addLayout(contentLayout);
     setCentralWidget(mainWidget);
 
-    resize(1050, 650);
+    resize(1100, 650);
     setWindowTitle(translate("Task Manager"));
 
 }
@@ -773,6 +773,7 @@ void MainWindow::workspaceSelected() {
     workspaceName.replace(translate("Workspace: "), "");
     workspaceName.replace(translate("Рабочее пространство: "), "");
 
+    currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(workspaceName));
     showCategories(workspaceName);
 }
 
@@ -987,7 +988,7 @@ void MainWindow::addTask()
 
         db.transaction();
         try {
-            // Установка статуса взависимости от языка
+            // Установка статуса взависимости от текущего языка
             QString status = isEnglish ? "Pending" : "В ожидании";
 
             // Вставка задачи
@@ -1555,22 +1556,33 @@ void MainWindow::updateUI() {
     notificationsButton->setText(translate("Уведомления"));
     languageButton->setText(isEnglish ? translate("Русский") : translate("English"));
     searchByTagsButton->setText(translate("Поиск по тегам"));
+    themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
 
-    // Обновление отображения рб + категорий
+    // Обновление отображения рабочего пространства
     QString currentText = currentWorkspaceLabel->text();
-    if (currentText != translate("Выберите рабочее пространство")) {
+    QString selectWorkspaceText = isEnglish ? translate("Select a workspace") : translate("Выберите рабочее пространство");
+    if (currentText == translate("Выберите рабочее пространство") ||
+        currentText == translate("Select a workspace")) {
+        currentWorkspaceLabel->setText(selectWorkspaceText);
+    } else {
+        // Если уже выбрано рабочее пространство
         QString cleanName = currentText;
-        cleanName.replace(translate("Рабочее пространство: "), "").replace(translate("Рабочее пространство: "), "");
+        cleanName.replace(translate("Рабочее пространство: "), "")
+            .replace(translate("Workspace: "), "");
         currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(cleanName));
     }
 
     showWorkspaces();
     if (!currentWorkspaceLabel->text().isEmpty() &&
-        currentWorkspaceLabel->text() != translate("Выберите рабочее пространство")) {
+        currentWorkspaceLabel->text() != translate("Выберите рабочее пространство") &&
+        currentWorkspaceLabel->text() != translate("Select a workspace")) {
         QString cleanName = currentWorkspaceLabel->text();
-        cleanName.replace(translate("Рабочее пространство: "), "").replace(translate("Рабочее пространство: "), "");
+        cleanName.replace(translate("Рабочее пространство: "), "")
+            .replace(translate("Workspace: "), "");
         showCategories(cleanName);
     }
+
+    retranslateUi();
 
     // Обновление открытых диалогов
     QWidgetList widgets = QApplication::allWidgets();
@@ -1601,17 +1613,27 @@ void MainWindow::retranslateUi() {
     languageButton->setText(isEnglish ? "Русский" : "English");
     searchByTagsButton->setText(translate("Поиск по тегам"));
 
+    QString currentText = currentWorkspaceLabel->text();
+    QString cleanName = currentText;
+
+    cleanName.remove(translate("Workspace: "))
+        .remove(translate("Рабочее пространство: "));
+
+    if (cleanName.isEmpty() ||
+        cleanName == translate("Выберите рабочее пространство") ||
+        cleanName == translate("Select a workspace")) {
+        currentWorkspaceLabel->setText(translate("Выберите рабочее пространство"));
+    } else {
+        currentWorkspaceLabel->setText(
+            translate(isEnglish ? "Workspace: %1" : "Рабочее пространство: %1")
+                .arg(cleanName));
+    }
+
     // Кнопки темы
     themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
 
     // Текущее рабочее пространство
-    QString currentText = currentWorkspaceLabel->text();
-    if (currentText != translate("Выберите рабочее пространство")) {
-        QString cleanName = currentText;
-        cleanName.replace(translate("Рабочее пространство: "), "")
-            .replace(translate("Workspace: "), "");
-        currentWorkspaceLabel->setText(translate("Рабочее пространство: %1").arg(cleanName));
-    }
+
 
     // Обновление отображения категорий и задач
     if (!currentWorkspaceLabel->text().isEmpty() &&
