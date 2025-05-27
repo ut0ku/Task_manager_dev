@@ -629,7 +629,7 @@ void MainWindow::showCategories(const QString& workspaceName) {
     categoriesLayout->addStretch();
 }
 
-// Переключение видимости бок понели
+// Переключение видимости бок панели
 void MainWindow::toggleSidebar()
 {
     if (sidebar->width() > 50) {
@@ -769,7 +769,7 @@ void MainWindow::workspaceSelected() {
 
     QString workspaceName = button->text();
 
-    // Удаление возможных префиксов перевода
+    // Удаляение возможных префиксов перевода
     workspaceName.replace(translate("Workspace: "), "");
     workspaceName.replace(translate("Рабочее пространство: "), "");
 
@@ -988,10 +988,10 @@ void MainWindow::addTask()
 
         db.transaction();
         try {
-            // Установка статуса взависимости от текущего языка
+            // Статус в зависимости от текущего языка
             QString status = isEnglish ? "Pending" : "В ожидании";
 
-            // Вставка задачи
+            // Вставление задачи
             QSqlQuery taskQuery;
             taskQuery.prepare(
                 "INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
@@ -1121,7 +1121,7 @@ void MainWindow::removeTask()
 void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& categoryName,
                                   const QString& taskDescription, const QString& newStatus)
 {
-    // Проверка на сущ
+    // Проверка на существование рабочего пр-ва
     if (!workspaces.contains(workspaceName)) {
         QMessageBox::warning(this, translate("Ошибка"), translate("Рабочее пространство не найдено"));
         return;
@@ -1133,7 +1133,7 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
         return;
     }
 
-    // Поиск
+    // Поиск задачи
     Category *category = workspace->getCategories()[categoryName];
     Task *taskToComplete = nullptr;
     int taskIndex = -1;
@@ -1153,6 +1153,7 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
 
     QString statusToSet = newStatus;
 
+    // Приведение статуса к текущему языку
     if (isEnglish) {
         if (statusToSet == "В ожидании") statusToSet = "Pending";
         else if (statusToSet == "В процессе") statusToSet = "In Progress";
@@ -1163,67 +1164,123 @@ void MainWindow::changeTaskStatus(const QString& workspaceName, const QString& c
         else if (statusToSet == "Completed") statusToSet = "Завершено";
     }
 
-
     QString currentStatus = taskToComplete->getStatus();
 
-    // Проверка на завершение таски (с учетом перевода)
+    // Проверка на завершение задачи
     bool isCompleting = (newStatus == "Завершено" || newStatus == "Completed") &&
                         (currentStatus != "Завершено" && currentStatus != "Completed");
 
-    // Обновление в бд
-    QString sql = QString("UPDATE Tasks SET status = '%1' WHERE id = %2")
-                      .arg(statusToSet)
-                      .arg(taskToComplete->getId());
-    executeSQL(sql);
+    db.transaction();
 
-    taskToComplete->setStatus(statusToSet);
+    try {
+        // Обновление статуса задачи
+        QSqlQuery updateQuery;
+        updateQuery.prepare("UPDATE Tasks SET status = :status WHERE id = :task_id");
+        updateQuery.bindValue(":status", statusToSet);
+        updateQuery.bindValue(":task_id", taskToComplete->getId());
 
-    if (isCompleting) {
-        // Перенос задачи в историю (если выполнена)
-        sql = QString("INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
-                      "VALUES ('%1', %2, '%3', '%4', '%5', '%6')")
-                  .arg(taskToComplete->getDescription())
-                  .arg(category->getId())
-                  .arg(taskToComplete->getDifficulty())
-                  .arg(taskToComplete->getPriority())
-                  .arg(isEnglish ? "Completed" : "Завершено")
-                  .arg(taskToComplete->getDeadline());
-        executeSQL(sql);
-
-        int historyId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
-
-        // Копирование тегов
-        for (const QString &tag : taskToComplete->getTags()) {
-            executeSQL(QString("INSERT INTO TaskTags (task_id, tag) VALUES (%1, '%2')")
-                           .arg(historyId).arg(tag));
+        if (!updateQuery.exec()) {
+            throw std::runtime_error(updateQuery.lastError().text().toStdString());
         }
 
-        // Удаление из активных задач
-        executeSQL(QString("DELETE FROM Tasks WHERE id = %1").arg(taskToComplete->getId()));
-        executeSQL(QString("DELETE FROM TaskTags WHERE task_id = %1").arg(taskToComplete->getId()));
+        taskToComplete->setStatus(statusToSet);
 
-        // Обновление данных
-        Task historyTask(taskToComplete->getId(), taskToComplete->getDescription(),
-                         categoryName, taskToComplete->getTags(),
-                         taskToComplete->getDifficulty(), taskToComplete->getPriority(),
-                         isEnglish ? "Completed" : "Завершено", taskToComplete->getDeadline());
-        taskHistory.append(historyTask);
+        if (isCompleting) {
 
-        // Удаление задачи из категории
-        delete category->getTasks().takeAt(taskIndex);
+            // Вставка задачи в историю
+            QSqlQuery insertHistoryQuery;
+            insertHistoryQuery.prepare(
+                "INSERT INTO TaskHistory (description, category_id, difficulty, priority, status, deadline) "
+                "VALUES (:description, :category_id, :difficulty, :priority, :status, :deadline)"
+                );
+            insertHistoryQuery.bindValue(":description", taskToComplete->getDescription());
+            insertHistoryQuery.bindValue(":category_id", category->getId());
+            insertHistoryQuery.bindValue(":difficulty", taskToComplete->getDifficulty());
+            insertHistoryQuery.bindValue(":priority", taskToComplete->getPriority());
+            insertHistoryQuery.bindValue(":status", isEnglish ? "Completed" : "Завершено");
+            insertHistoryQuery.bindValue(":deadline", taskToComplete->getDeadline());
 
-        QMessageBox::information(this, translate("Задача завершена"),
-                                 translate("Задача \"%1\" перемещена в историю").arg(taskDescription));
-    } else {
-        QMessageBox::information(this, translate("Статус изменен"),
-                                 translate("Статус задачи \"%1\" обновлен").arg(taskDescription));
+            if (!insertHistoryQuery.exec()) {
+                throw std::runtime_error(insertHistoryQuery.lastError().text().toStdString());
+            }
+
+            int historyId = insertHistoryQuery.lastInsertId().toInt();
+            qDebug() << "Task moved to history with ID:" << historyId;
+
+            // Копирование всех тегов задачи в историю
+            QSqlQuery getTagsQuery;
+            getTagsQuery.prepare("SELECT tag FROM TaskTags WHERE task_id = :task_id");
+            getTagsQuery.bindValue(":task_id", taskToComplete->getId());
+
+            if (!getTagsQuery.exec()) {
+                throw std::runtime_error(getTagsQuery.lastError().text().toStdString());
+            }
+
+            QStringList tags;
+            while (getTagsQuery.next()) {
+                QString tag = getTagsQuery.value(0).toString();
+                tags.append(tag);
+
+                QSqlQuery insertTagQuery;
+                insertTagQuery.prepare("INSERT INTO TaskTags (task_id, tag) VALUES (:task_id, :tag)");
+                insertTagQuery.bindValue(":task_id", historyId);
+                insertTagQuery.bindValue(":tag", tag);
+
+                if (!insertTagQuery.exec()) {
+                    throw std::runtime_error(insertTagQuery.lastError().text().toStdString());
+                }
+                qDebug() << "Tag copied to history:" << tag;
+            }
+
+            // Удаление задачи из активных
+            QSqlQuery deleteTaskQuery;
+            deleteTaskQuery.prepare("DELETE FROM Tasks WHERE id = :task_id");
+            deleteTaskQuery.bindValue(":task_id", taskToComplete->getId());
+
+            if (!deleteTaskQuery.exec()) {
+                throw std::runtime_error(deleteTaskQuery.lastError().text().toStdString());
+            }
+
+            // Удаление тегов задачи
+            QSqlQuery deleteTagsQuery;
+            deleteTagsQuery.prepare("DELETE FROM TaskTags WHERE task_id = :task_id");
+            deleteTagsQuery.bindValue(":task_id", taskToComplete->getId());
+
+            if (!deleteTagsQuery.exec()) {
+                throw std::runtime_error(deleteTagsQuery.lastError().text().toStdString());
+            }
+
+            db.commit();
+
+            // Обновление данных в памяти
+            Task historyTask(historyId, taskToComplete->getDescription(),
+                             categoryName, tags,
+                             taskToComplete->getDifficulty(), taskToComplete->getPriority(),
+                             isEnglish ? "Completed" : "Завершено", taskToComplete->getDeadline());
+            taskHistory.append(historyTask);
+
+            // Удаление задачи из категории
+            delete category->getTasks().takeAt(taskIndex);
+
+            QMessageBox::information(this, translate("Задача завершена"),
+                                     translate("Задача \"%1\" перемещена в историю").arg(taskDescription));
+        } else {
+            db.commit();
+            QMessageBox::information(this, translate("Статус изменен"),
+                                     translate("Статус задачи \"%1\" обновлен").arg(taskDescription));
+        }
+    } catch (const std::exception &e) {
+        db.rollback();
+        QMessageBox::critical(this, translate("Ошибка"),
+                              translate("Не удалось изменить статус задачи: ") + QString::fromStdString(e.what()));
+        qDebug() << "Error changing task status:" << e.what();
+        return;
     }
 
     showCategories(workspaceName);
 }
 
-// тест
-// Проврка на завершенность статуса
+// Пр-ка на завершенность статуса
 bool MainWindow::isCompletedStatus(const QString& status) const {
     return compareStringsIgnoreCase(status, "Завершено") ||
            compareStringsIgnoreCase(status, "Completed");
@@ -1289,7 +1346,6 @@ void MainWindow::showHistory()
 // Возвращение задачи из истории
 void MainWindow::restoreTaskFromHistory()
 {
-    // Запрос данных
     bool ok;
     QString taskDescription = QInputDialog::getText(this, translate("Восстановить задачу"),
                                                     translate("Введите описание задачи для восстановления:"),
@@ -1306,60 +1362,135 @@ void MainWindow::restoreTaskFromHistory()
                                                  QLineEdit::Normal, "", &ok);
     if (!ok || categoryName.isEmpty()) return;
 
-    // Поиск задач
-    for (auto it = taskHistory.begin(); it != taskHistory.end(); ++it) {
-        if (compareStringsIgnoreCase(it->getDescription(), taskDescription)) {
-            if (!workspaces.contains(workspaceName)) {
-                QMessageBox::warning(this, translate("Error"), translate("Рабочее пространство не найдено"));
-                return;
-            }
+    // Нахождение задачи в истории
+    QSqlQuery findTaskQuery;
+    findTaskQuery.prepare("SELECT id, description, difficulty, priority, status, deadline FROM TaskHistory WHERE description = :description");
+    findTaskQuery.bindValue(":description", taskDescription);
 
-            Workspace *workspace = workspaces[workspaceName];
-            if (!workspace->getCategories().contains(categoryName)) {
-                QMessageBox::warning(this, translate("Error"), translate("Категория не найдена в рабочем пространстве"));
-                return;
-            }
-
-            Category *category = workspace->getCategories()[categoryName];
-
-            // Вставка в активные задачи
-            QString sql = "INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
-                          "VALUES ('" + it->getDescription() + "', " + QString::number(category->getId()) +
-                          ", '" + it->getDifficulty() + "', '" + it->getPriority() + "', '" +
-                          it->getStatus() + "', '" + it->getDeadline() + "');";
-            executeSQL(sql);
-
-            int taskId = QSqlQuery("SELECT last_insert_rowid();").value(0).toInt();
-
-            for (const auto& tag : it->getTags()) {
-                sql = "INSERT INTO TaskTags (task_id, tag) VALUES (" + QString::number(taskId) + ", '" + tag + "');";
-                executeSQL(sql);
-            }
-
-            // Удаление из истории
-            sql = "DELETE FROM TaskHistory WHERE id = " + QString::number(it->getId()) + ";";
-            executeSQL(sql);
-
-            sql = "DELETE FROM TaskTags WHERE task_id = " + QString::number(it->getId()) + ";";
-            executeSQL(sql);
-
-            // Создание новой задачи и добавление в категорию
-            Task *task = new Task(taskId, it->getDescription(), categoryName,
-                                  it->getTags(), it->getDifficulty(),
-                                  it->getPriority(), it->getStatus(),
-                                  it->getDeadline());
-            category->addTask(task);
-
-            taskHistory.erase(it);
-
-            QMessageBox::information(this, translate("Задача восстановлена"),
-                                     translate("Задача \"%1\" была восстановлена").arg(taskDescription));
-            showCategories(workspaceName);
-            return;
-        }
+    if (!findTaskQuery.exec()) {
+        QMessageBox::critical(this, translate("Ошибка"), findTaskQuery.lastError().text());
+        return;
     }
 
-    QMessageBox::warning(this, translate("Error"), translate("Задача не найдена в истории"));
+    if (!findTaskQuery.next()) {
+        QMessageBox::warning(this, translate("Ошибка"), translate("Задача не найдена в истории"));
+        return;
+    }
+
+    int oldTaskId = findTaskQuery.value(0).toInt();
+    QString description = findTaskQuery.value(1).toString();
+    QString difficulty = findTaskQuery.value(2).toString();
+    QString priority = findTaskQuery.value(3).toString();
+    QString status = findTaskQuery.value(4).toString();
+    QString deadline = findTaskQuery.value(5).toString();
+
+    // Проверка на сущ рабочего пр-ва и категории
+    if (!workspaces.contains(workspaceName)) {
+        QMessageBox::warning(this, translate("Ошибка"), translate("Рабочее пространство не найдено"));
+        return;
+    }
+
+    Workspace* workspace = workspaces[workspaceName];
+    if (!workspace->getCategories().contains(categoryName)) {
+        QMessageBox::warning(this, translate("Ошибка"), translate("Категория не найдена в рабочем пространстве"));
+        return;
+    }
+
+    Category* category = workspace->getCategories()[categoryName];
+    int categoryId = category->getId();
+
+    db.transaction();
+
+    try {
+        // Вставка задачи в таблицу
+        QSqlQuery insertTaskQuery;
+        insertTaskQuery.prepare(
+            "INSERT INTO Tasks (description, category_id, difficulty, priority, status, deadline) "
+            "VALUES (:description, :category_id, :difficulty, :priority, :status, :deadline)"
+            );
+        insertTaskQuery.bindValue(":description", description);
+        insertTaskQuery.bindValue(":category_id", categoryId);
+        insertTaskQuery.bindValue(":difficulty", difficulty);
+        insertTaskQuery.bindValue(":priority", priority);
+        insertTaskQuery.bindValue(":status", status);
+        insertTaskQuery.bindValue(":deadline", deadline);
+
+        if (!insertTaskQuery.exec()) {
+            throw std::runtime_error(insertTaskQuery.lastError().text().toStdString());
+        }
+
+        int newTaskId = insertTaskQuery.lastInsertId().toInt();
+        qDebug() << "New task ID after restore:" << newTaskId;
+
+        // Получение тегов из истории
+        QSqlQuery getTagsQuery;
+        getTagsQuery.prepare("SELECT tag FROM TaskTags WHERE task_id = :old_task_id");
+        getTagsQuery.bindValue(":old_task_id", oldTaskId);
+
+        if (!getTagsQuery.exec()) {
+            throw std::runtime_error(getTagsQuery.lastError().text().toStdString());
+        }
+
+        QStringList tags;
+        while (getTagsQuery.next()) {
+            QString tag = getTagsQuery.value(0).toString();
+            tags.append(tag);
+
+            // Вставка тегов для новой задачи
+            QSqlQuery insertTagQuery;
+            insertTagQuery.prepare("INSERT INTO TaskTags (task_id, tag) VALUES (:new_task_id, :tag)");
+            insertTagQuery.bindValue(":new_task_id", newTaskId);
+            insertTagQuery.bindValue(":tag", tag);
+
+            if (!insertTagQuery.exec()) {
+                throw std::runtime_error(insertTagQuery.lastError().text().toStdString());
+            }
+            qDebug() << "Tag copied:" << tag << "for task" << newTaskId;
+        }
+
+        // Удаление задачи из истории
+        QSqlQuery deleteHistoryQuery;
+        deleteHistoryQuery.prepare("DELETE FROM TaskHistory WHERE id = :task_id");
+        deleteHistoryQuery.bindValue(":task_id", oldTaskId);
+
+        if (!deleteHistoryQuery.exec()) {
+            throw std::runtime_error(deleteHistoryQuery.lastError().text().toStdString());
+        }
+
+        // Удаление тегов из истории
+        QSqlQuery deleteTagsQuery;
+        deleteTagsQuery.prepare("DELETE FROM TaskTags WHERE task_id = :task_id");
+        deleteTagsQuery.bindValue(":task_id", oldTaskId);
+
+        if (!deleteTagsQuery.exec()) {
+            throw std::runtime_error(deleteTagsQuery.lastError().text().toStdString());
+        }
+
+        db.commit();
+
+        // Обновление данных
+        Task* task = new Task(newTaskId, description, categoryName, tags,
+                              difficulty, priority, status, deadline);
+        category->addTask(task);
+
+        // Удаление задачи из списка истории в памяти
+        for (auto it = taskHistory.begin(); it != taskHistory.end(); ++it) {
+            if (it->getId() == oldTaskId) {
+                taskHistory.erase(it);
+                break;
+            }
+        }
+
+        qDebug() << "Task restored successfully. Tags count:" << tags.size();
+        QMessageBox::information(this, translate("Задача восстановлена"),
+                                 translate("Задача \"%1\" была восстановлена").arg(taskDescription));
+        showCategories(workspaceName);
+    } catch (const std::exception& e) {
+        db.rollback();
+        qDebug() << "Error restoring task:" << e.what();
+        QMessageBox::critical(this, translate("Ошибка"),
+                              translate("Не удалось восстановить задачу: ") + QString::fromStdString(e.what()));
+    }
 }
 
 // Удаление таски из истории
@@ -1484,6 +1615,7 @@ void MainWindow::checkDeadlines()
                                 break;
                             }
                         }
+
                         // Добавление нового уведомления
                         if (!exists) {
                             notifications.append(Notification(task->getDescription(), taskDeadline));
@@ -1631,9 +1763,6 @@ void MainWindow::retranslateUi() {
 
     // Кнопки темы
     themeButton->setText(isDarkTheme ? translate("Светлая тема") : translate("Темная тема"));
-
-    // Текущее рабочее пространство
-
 
     // Обновление отображения категорий и задач
     if (!currentWorkspaceLabel->text().isEmpty() &&
@@ -1790,15 +1919,31 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
 
             for (Task* task : tasks) {
                 QStringList taskTags = task->getTags();
+
+                // Перезапрос тегов из БД для актуальности
+                taskTags.clear();
+                QSqlQuery tagQuery;
+                tagQuery.prepare("SELECT tag FROM TaskTags WHERE task_id = :task_id");
+                tagQuery.bindValue(":task_id", task->getId());
+
+                if (tagQuery.exec()) {
+                    while (tagQuery.next()) {
+                        taskTags.append(tagQuery.value(0).toString());
+                    }
+                } else {
+                    qDebug() << "Error loading tags for task:" << task->getDescription();
+                }
+
                 qDebug() << "Checking task:" << task->getDescription() << "with tags:" << taskTags;
 
                 for (const QString& taskTag : taskTags) {
                     for (const QString& searchTag : tags) {
-                        // Сравнение (без регистра)
+                        // Сравнение (без учета регистра)
                         if (taskTag.trimmed().compare(searchTag.trimmed(), Qt::CaseInsensitive) == 0) {
                             results.append(qMakePair(workspace->getName(), category->getName()));
-                            qDebug() << "Found match in active tasks! Workspace:" << workspace->getName()
-                                     << "Category:" << category->getName() << "Task:" << task->getDescription();
+                            qDebug() << "Found match! Workspace:" << workspace->getName()
+                                     << "Category:" << category->getName()
+                                     << "Task:" << task->getDescription();
                             goto next_task;
                         }
                     }
@@ -1807,12 +1952,11 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
             }
         }
     }
-    //Дебаг
+
     if (results.isEmpty()) {
         qDebug() << "No tasks found with these tags. All available tags in the system:";
         QSet<QString> allTags;
 
-        // Сборка тегов
         for (const auto& workspace : workspaces) {
             for (const auto& category : workspace->getCategories()) {
                 for (const Task* task : category->getTasks()) {
@@ -1824,7 +1968,6 @@ QVector<QPair<QString, QString>> MainWindow::findTasksByTags(const QStringList& 
                 }
             }
         }
-
         qDebug() << "All existing tags:" << allTags.values();
     }
 
